@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mini Games</title>
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <style>
+    :root {
+      --primary: #6c63ff;
+      --bg: #181a20;
+      --surface: #23252e;
+      --surface-light: #353744;
+      --text: #f0f0f0;
+      --accent: #ffb300;
+      --radius: 1.125rem;
+      --shadow: 0 0.25rem 2rem rgba(0,0,0,0.18);
+      --shadow-card: 0 2px 24px 0 rgba(108,99,255,0.10);
+      --link: #6cf;
+      --link-hover: #fff;
+      font-size: 16px; /* 1rem = 16px base */
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+      min-height: 100dvh;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100dvh;
+      gap: 2em;
+    }
+
+    header {
+      margin-top: 2.5em;
+      text-align: center;
+      padding: 0 2em;
+
+      h1 {
+        font-size: 2.2rem;
+        color: var(--primary);
+        margin-bottom: 0.2em;
+      }
+
+      p {
+        color: #bdbdbd;
+        font-size: 1.1rem;
+        margin-top: 0;
+      }
+    }
+
+    .card-group {
+      width: 100%;
+      max-width: 56.25rem;
+      padding: 2em 2em 2em 2em;
+    }
+
+    .games {
+      display: block;
+      width: 100%;
+      max-width: 56.25rem;
+    }
+
+    .game-card {
+      background: var(--surface-light);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-card);
+      padding: 2em 1.5em 1.5em 1.5em;
+      width: 100%;
+      margin: 0 auto 2em auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.2em;
+
+      h2 {
+        font-size: 1.3rem;
+        margin: 0 0 0.2em 0;
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+      }
+
+      p {
+        color: #d0d0d0;
+        font-size: 1rem;
+        margin: 0 0 0.5em 0;
+        text-align: center;
+      }
+    }
+
+    .play-link {
+      display: inline-block;
+      background: var(--primary);
+      color: #fff;
+      font-weight: bold;
+      font-size: 1rem;
+      border-radius: 999px;
+      padding: 0.7em 1.6em;
+      margin: 0.5em 0 0.2em 0;
+      text-decoration: none;
+      box-shadow: 0 0.125rem 0.5rem rgba(108,99,255,0.18);
+      transition: background 0.2s, color 0.2s;
+
+      &:hover,
+      &:focus {
+        background: var(--accent);
+        color: var(--surface);
+      }
+    }
+
+    details {
+      max-width: 56.25rem;
+      margin: 0 auto;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 2em;
+
+      summary {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: var(--primary);
+        cursor: pointer;
+        outline: none;
+      }
+    }
+
+    .thumbs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5em;
+      justify-content: center;
+      margin-top: 1.5em;
+    }
+
+    .thumb {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.5em;
+      border-radius: 0.75em;
+      overflow: hidden;
+      box-shadow: 0 0.125rem 0.75rem rgba(0,0,0,0.18);
+      cursor: pointer;
+      transition: transform 0.15s;
+      padding: 0.5em;
+      align-items: center;
+
+      .caption {
+        margin-top: auto;
+      }
+
+      img {
+        display: block;
+        width: 8.75rem;
+        height: auto;
+        border-radius: 0.75em;
+        object-fit: cover;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      &:hover {
+        transform: scale(1.06);
+        box-shadow: 0 0.25rem 1.5rem var(--primary);
+      }
+    }
+
+    dialog[open] {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(24,26,32,0.98);
+      border: none;
+      /* No border-radius for dialog */
+      box-shadow: 0 0.5rem 3rem #000a;
+      padding: 0;
+      z-index: 1000;
+      animation: fadeIn 0.2s;
+
+      img {
+        max-width: 90vw;
+        max-height: 80vh;
+        border-radius: 0;
+        margin: 0;
+        display: block;
+      }
+
+      button.close {
+        position: absolute;
+        top: 1.2em;
+        right: 1.2em;
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 2.5em;
+        height: 2.5em;
+        font-size: 1.5rem;
+        cursor: pointer;
+        box-shadow: 0 0.125rem 0.5rem #0005;
+        z-index: 1001;
+        transition: background 0.2s;
+
+        &:hover {
+          background: var(--accent);
+        }
+      }
+    }
+
+    dialog::backdrop {
+      background: rgba(24,26,32,0.55);
+      backdrop-filter: blur(8px) saturate(1.5) brightness(1.1);
+      -webkit-backdrop-filter: blur(8px) saturate(1.5) brightness(1.1);
+      transition: background 0.2s;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Mini Games</h1>
+    <p>Quick, fun, kid-friendly games. No ads, no tracking, no dark patterns. Offline friendly.</p>
+  </header>
+  <main class="card-group">
+    <div class="game-card">
+      <h2>🎮 Block Drop</h2>
+      <p>
+          Like Tetris, but with a twist: new piece sets, bombs, and a break reminder!<br>
+      </p>
+      <a class="play-link" href="./block-drop.html">Play Block Drop ⏩</a>
+      <details>
+          <summary>Block Drop Screenshots</summary>
+          <div class="thumbs" role="list">
+          <button type="button" class="thumb" role="listitem" command="show-modal" commandfor="imgModal" aria-label="Enlarge Block Drop Light Mobile" data-img="./screenshots/block-drop/block-drop-light-mobile.webp" data-alt="Block Drop Light Mobile">
+              <img src="./screenshots/block-drop/block-drop-light-mobile.webp" alt="Block Drop Light Mobile" id="bd-light-mobile-thumb">
+              <span class="caption">Light Mobile</span>
+          </button>
+          <button type="button" class="thumb" role="listitem" command="show-modal" commandfor="imgModal" aria-label="Enlarge Block Drop Dark Mobile" data-img="./screenshots/block-drop/block-drop-dark-mobile.webp" data-alt="Block Drop Dark Mobile">
+              <img src="./screenshots/block-drop/block-drop-dark-mobile.webp" alt="Block Drop Dark Mobile" id="bd-dark-mobile-thumb">
+              <span class="caption">Dark Mobile</span>
+          </button>
+          <button type="button" class="thumb" role="listitem" command="show-modal" commandfor="imgModal" aria-label="Enlarge Block Drop Light Desktop" data-img="./screenshots/block-drop/block-drop-light-desktop.webp" data-alt="Block Drop Light Desktop">
+              <img src="./screenshots/block-drop/block-drop-light-desktop.webp" alt="Block Drop Light Desktop" id="bd-light-desktop-thumb">
+              <span class="caption">Light Desktop</span>
+          </button>
+          <button type="button" class="thumb" role="listitem" command="show-modal" commandfor="imgModal" aria-label="Enlarge Block Drop Dark Desktop" data-img="./screenshots/block-drop/block-drop-dark-desktop.webp" data-alt="Block Drop Dark Desktop">
+              <img src="./screenshots/block-drop/block-drop-dark-desktop.webp" alt="Block Drop Dark Desktop" id="bd-dark-desktop-thumb">
+              <span class="caption">Dark Desktop</span>
+          </button>
+          </div>
+      </details>
+    </div>
+    <div class="game-card">
+      <h2>🔢 Maths Quest</h2>
+      <p>
+          Platformer meets maths! Collect numbers and operators to hit the target before time runs out.<br>
+      </p>
+      <a class="play-link" href="./maths-quest.html">Play Maths Quest ⏩</a>
+      <details>
+          <summary>Maths Quest Screenshots</summary>
+          <div class="thumbs" role="list">
+          <button type="button" class="thumb" role="listitem" command="show-modal" commandfor="imgModal" aria-label="Enlarge Maths Quest Desktop" data-img="./screenshots/maths-quest/maths-quest-desktop.webp" data-alt="Maths Quest Desktop">
+              <img src="./screenshots/maths-quest/maths-quest-desktop.webp" alt="Maths Quest Desktop" id="mq-desktop-thumb">
+              <span class="caption">Desktop</span>
+          </button>
+          <button type="button" class="thumb" role="listitem" command="show-modal" commandfor="imgModal" aria-label="Enlarge Maths Quest Mobile" data-img="./screenshots/maths-quest/maths-quest-mobile.webp" data-alt="Maths Quest Mobile">
+              <img src="./screenshots/maths-quest/maths-quest-mobile.webp" alt="Maths Quest Mobile" id="mq-mobile-thumb">
+              <span class="caption">Mobile</span>
+          </button>
+          </div>
+      </details>
+    </div>
+  </main>
+  <dialog id="imgModal" aria-modal="true" aria-label="Screenshot preview">
+    <form method="dialog">
+        <button type="button" class="close" command="close" commandfor="imgModal" aria-label="Close">&times;</button>
+    </form>
+    <img src="" alt="Screenshot preview" id="modal-img">
+  </dialog>
+  <script>
+    // Declarative modal logic: set image src/alt on dialog open
+    document.addEventListener('click', function(e) {
+      const btn = e.target.closest('button[command="show-modal"][commandfor="imgModal"]');
+      if (btn) {
+        const modal = document.getElementById('imgModal');
+        const img = modal.querySelector('#modal-img');
+        img.src = btn.getAttribute('data-img');
+        img.alt = btn.getAttribute('data-alt');
+      }
+    });
+    // Close dialog when clicking the backdrop (outside the dialog)
+    const imgModal = document.getElementById('imgModal');
+    if (imgModal) {
+      imgModal.addEventListener('click', function(e) {
+        if (e.target === imgModal) {
+          imgModal.close();
+        }
+      });
+    }
+  </script>
+  <script>
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./worker.js');
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,1833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d0d0d">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- Inline PWA manifest: lets Add-to-Home-Screen users get true fullscreen on iOS -->
+<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22Maths+Quest%22%2C%22short_name%22%3A%22Math+Quest%22%2C%22display%22%3A%22fullscreen%22%2C%22background_color%22%3A%22%230d0d0d%22%2C%22theme_color%22%3A%22%230d0d0d%22%2C%22orientation%22%3A%22any%22%7D">
+<title>Maths Quest</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='52'%3E%F0%9F%94%A2%3C/text%3E%3C/svg%3E">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
+
+:root {
+  --black:    #0d0d0d;
+  --darkblue: #1a1a2e;
+  --navy:     #16213e;
+  --sky:      #0f3460;
+  --red:      #e94560;
+  --orange:   #f5a623;
+  --yellow:   #f7e733;
+  --green:    #27ae60;
+  --lime:     #a8ff3e;
+  --cyan:     #00e5ff;
+  --white:    #f0f0f0;
+  --cream:    #fffde7;
+  --brown:    #7b4f2e;
+  --tan:      #c89b6e;
+  --brick:    #c0392b;
+  --steel:    #546e7a;
+  --ladder:   #f7c948;
+  --platform: #4a90d9;
+  --plat-hi:  #74b4ef;
+  --plat-sh:  #2c5f8a;
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; image-rendering:pixelated; }
+
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+}
+
+body {
+  font-family: 'Press Start 2P', monospace;
+  background: var(--black);
+  color: var(--white);
+  overflow: hidden;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+/* ── scanline overlay ─────────────────────────────── */
+body::after {
+  content:'';
+  pointer-events:none;
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(0,0,0,.12) 2px,
+    rgba(0,0,0,.12) 4px
+  );
+  z-index:9999;
+}
+
+#wrap {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  width: min(800px, 99vw);
+}
+
+/* ── top score bar ────────────────────────────────── */
+#scorebar {
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:8px 14px;
+  background: var(--darkblue);
+  border:3px solid var(--cyan);
+  box-shadow: 0 0 0 2px var(--black), inset 0 1px 0 rgba(255,255,255,.06);
+  font-size:9px;
+  letter-spacing:1px;
+  flex-wrap:wrap;
+  gap:8px;
+  position:relative;
+}
+#scorebar .sb-item { display:flex; flex-direction:column; gap:4px; }
+#scorebar .sb-label { color: var(--cyan); font-size:7px; }
+#scorebar .sb-val   { color: var(--yellow); font-size:14px; text-shadow:0 0 8px var(--yellow); }
+#sb-lives span { color: var(--red); font-size:14px; }
+
+#pauseHudBtn {
+  display: none;
+  background: rgba(0,229,255,.15);
+  border: 2px solid var(--cyan);
+  border-radius: 6px;
+  color: var(--cyan);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  touch-action: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  line-height: 1;
+}
+#pauseHudBtn:active { background: rgba(0,229,255,.4); }
+
+/* Fullscreen button — touch only, auto-hidden when already in fullscreen */
+#fullscreenBtn {
+  display: none;
+  background: rgba(0,229,255,.15);
+  border: 2px solid var(--cyan);
+  border-radius: 6px;
+  color: var(--cyan);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  cursor: pointer;
+  touch-action: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  line-height: 1;
+  transition: background .1s, opacity .3s;
+}
+#fullscreenBtn:active { background: rgba(0,229,255,.4); }
+/* Hide when browser is already in fullscreen */
+:fullscreen #fullscreenBtn { opacity: 0; pointer-events: none; }
+:-webkit-full-screen #fullscreenBtn { opacity: 0; pointer-events: none; }
+/* Hide when installed as PWA (already fullscreen by manifest) */
+@media (display-mode: fullscreen) { #fullscreenBtn { display: none !important; } }
+
+
+/* ── target + time strip ──────────────────────────── */
+#infobar {
+  width:100%;
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+  padding:10px 14px;
+  background: var(--navy);
+  border:3px solid var(--orange);
+  box-shadow: 0 0 0 2px var(--black), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.info-block { display:flex; flex-direction:column; align-items:center; gap:5px; }
+.info-label { color: var(--orange); font-size:7px; letter-spacing:2px; }
+.info-val   { font-size:28px; text-shadow:0 0 14px currentColor; }
+#ui-target  { color: var(--yellow); }
+#ui-time    { color: var(--lime); }
+#ui-time.warn { color: var(--red); animation: blink .4s step-end infinite; }
+#ui-eq      { color: var(--cyan); font-size:16px; text-align:center; min-width:200px; max-width:280px; word-break:break-all; }
+
+@keyframes blink { 50% { opacity:.3; } }
+
+/* ── canvas ───────────────────────────────────────── */
+#gameCanvas {
+  border:3px solid var(--sky);
+  outline:3px solid var(--black);
+  box-shadow:
+    0 0 0 3px var(--cyan),
+    0 0 40px rgba(0,229,255,.25),
+    inset 0 0 60px rgba(0,0,0,.5);
+  display:block;
+  background: var(--black);
+  max-width:100%;
+  height:auto;
+}
+
+/* ── TOUCH CONTROLS (shown only on touch devices via JS) ── */
+#touch-controls {
+  display: none;
+  width: 100%;
+  padding: 8px 12px calc(8px + var(--sab)) 12px;
+  background: rgba(13,13,26,0.94);
+  border-top: 2px solid rgba(0,229,255,.25);
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  touch-action: none;
+}
+#tc-left-cluster { display:flex; flex-direction:row; align-items:center; gap:6px; }
+#tc-right-cluster { display:flex; flex-direction:row; align-items:center; }
+#tc-ud { display:flex; flex-direction:column; gap:5px; }
+.tc-btn {
+  background: rgba(0,229,255,.12);
+  border: 2px solid var(--cyan);
+  border-radius: 8px;
+  color: var(--cyan);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  width: 74px; height: 74px;
+  box-shadow: 0 4px 0 rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1);
+  transition: background .06s, transform .06s, box-shadow .06s;
+}
+.tc-btn:active, .tc-btn.pressed {
+  background: rgba(0,229,255,.38);
+  box-shadow: 0 1px 0 rgba(0,0,0,.4);
+  transform: translateY(3px);
+}
+#tc-up, #tc-down { width:62px; height:56px; font-size:15px; border-color:rgba(0,229,255,.5); }
+#tc-up.ladder-hint, #tc-down.ladder-hint {
+  border-color: var(--yellow); color: var(--yellow);
+  animation: ladderPulse 0.9s ease-in-out infinite;
+}
+@keyframes ladderPulse {
+  0%,100% { box-shadow: 0 4px 0 rgba(0,0,0,.5), 0 0 0 0 rgba(247,231,51,0); }
+  50%     { box-shadow: 0 4px 0 rgba(0,0,0,.5), 0 0 0 6px rgba(247,231,51,.35); }
+}
+#tc-jump {
+  width: 90px; height: 90px;
+  background: rgba(247,231,51,.14);
+  border: 3px solid var(--yellow);
+  border-radius: 50%;
+  color: var(--yellow);
+  font-size: 9px; text-align: center; line-height: 1.4;
+  box-shadow: 0 5px 0 rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1);
+}
+#tc-jump:active, #tc-jump.pressed {
+  background: rgba(247,231,51,.38);
+  box-shadow: 0 1px 0 rgba(0,0,0,.4);
+  transform: translateY(4px);
+}
+#control-hint {
+  position: fixed; inset: 0; pointer-events: none; z-index: 350;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: calc(175px + var(--sab));
+}
+#control-hint-inner {
+  background: rgba(0,0,0,.82);
+  border: 2px solid var(--cyan); border-radius: 10px;
+  padding: 12px 20px; color: var(--cyan);
+  font-family: 'VT323', monospace; font-size: 21px;
+  text-align: center; line-height: 1.7;
+  animation: hintFade 3.8s ease-out forwards;
+}
+@keyframes hintFade { 0%,72% { opacity:1; } 100% { opacity:0; } }
+
+/* ── modal overlay ────────────────────────────────── */
+#modal {
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.88);
+  display:flex; align-items:center; justify-content:center;
+  z-index:500;
+}
+#modal.hide { display:none; }
+#modal-box {
+  background: var(--darkblue);
+  border:4px solid var(--cyan);
+  outline:4px solid var(--black);
+  box-shadow:0 0 0 8px var(--orange), 0 0 60px rgba(0,229,255,.3);
+  padding:32px 28px;
+  max-width:440px;
+  width:90%;
+  text-align:center;
+  animation: popIn .2s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes popIn {
+  from { transform:scale(.7); opacity:0; }
+  to   { transform:scale(1);  opacity:1; }
+}
+#modal-title {
+  color:var(--yellow);
+  font-size:20px;
+  text-shadow:0 0 16px var(--yellow);
+  margin-bottom:20px;
+  letter-spacing:2px;
+}
+#modal-body {
+  color:var(--cyan);
+  font-family:'VT323', monospace;
+  font-size:22px;
+  line-height:1.9;
+  margin-bottom:24px;
+}
+.mbtn {
+  background: var(--red);
+  border:none;
+  outline:3px solid var(--black);
+  box-shadow:3px 3px 0 var(--black);
+  padding:14px 28px;
+  font-family:'Press Start 2P', monospace;
+  font-size:12px;
+  color:var(--white);
+  cursor:pointer;
+  letter-spacing:1px;
+  transition:transform .08s, box-shadow .08s;
+  margin:4px;
+}
+.mbtn:hover { background:var(--orange); color:var(--black); }
+.mbtn:active { transform:translate(2px,2px); box-shadow:1px 1px 0 var(--black); }
+
+/* ── pause dialog ─────────────────────────────────── */
+#pauseDlg {
+  border:4px solid var(--yellow);
+  outline:4px solid var(--black);
+  background: var(--darkblue);
+  box-shadow:0 0 0 8px var(--orange), 0 0 60px rgba(255,165,0,.3);
+  padding:40px 32px;
+  text-align:center;
+  max-width:360px;
+  width:90%;
+  margin: auto;
+}
+#pauseDlg::backdrop {
+  background:rgba(0,0,0,.7);
+  backdrop-filter:blur(4px);
+}
+#pauseDlg h2 { color:var(--yellow); font-size:22px; margin-bottom:16px; text-shadow:0 0 12px var(--yellow); }
+#pauseDlg p  { color:var(--cyan); font-family:'VT323', monospace; font-size:20px; margin-bottom:20px; }
+
+/* ── flash message ────────────────────────────────── */
+#flash {
+  position:fixed; top:50%; left:50%;
+  transform:translate(-50%,-50%) scale(0);
+  font-size:24px; color:var(--lime); text-shadow:0 0 20px var(--lime);
+  pointer-events:none; z-index:400;
+  transition:transform .1s, opacity .3s;
+  opacity:0;
+}
+#flash.show {
+  transform:translate(-50%,-50%) scale(1);
+  opacity:1;
+}
+
+/* ── level picker ─────────────────────────────────── */
+#level-picker {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+#level-picker.show { display: flex; }
+#level-picker-label {
+  color: var(--orange);
+  font-size: 9px;
+  letter-spacing: 2px;
+}
+#level-picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  max-width: 340px;
+}
+.lvl-btn {
+  width: 38px; height: 38px;
+  background: var(--navy);
+  border: 2px solid var(--steel);
+  color: var(--white);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all .1s;
+  outline: none;
+}
+.lvl-btn:hover  { background: var(--sky); border-color: var(--cyan); color: var(--cyan); }
+.lvl-btn.sel    { background: var(--red); border-color: var(--yellow); color: var(--yellow);
+                  box-shadow: 0 0 8px var(--yellow); }
+
+/* ── stuck overlay (fixed, slides down from top, no layout shift) ── */
+#stuck-panel {
+  position: fixed;
+  top: 0; left: 50%;
+  transform: translateX(-50%) translateY(-110%);
+  visibility: hidden;
+  width: min(800px, 99vw);
+  z-index: 300;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--darkblue);
+  border: 3px solid var(--red);
+  border-top: none;
+  outline: 3px solid var(--black);
+  box-shadow: 0 6px 0 var(--black), 0 8px 30px rgba(233,69,96,.6);
+  flex-wrap: wrap;
+  transition: transform .32s cubic-bezier(.34,1.2,.64,1), visibility 0s .32s;
+}
+#stuck-panel.show {
+  transform: translateX(-50%) translateY(0);
+  visibility: visible;
+  transition: transform .32s cubic-bezier(.34,1.2,.64,1), visibility 0s 0s;
+}
+#stuck-text {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+#stuck-title {
+  color: var(--red);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px var(--red);
+}
+#stuck-picked {
+  color: var(--orange);
+  font-family: 'VT323', monospace;
+  font-size: 22px;
+}
+#stuck-needed {
+  color: var(--lime);
+  font-family: 'VT323', monospace;
+  font-size: 22px;
+}
+#stuck-lives {
+  color: var(--red);
+  font-size: 13px;
+  margin-top: 3px;
+}
+#stuck-btn {
+  background: var(--red);
+  border: none;
+  outline: 3px solid var(--black);
+  box-shadow: 3px 3px 0 var(--black);
+  padding: 12px 18px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--white);
+  cursor: pointer;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: transform .08s, box-shadow .08s, background .08s;
+}
+#stuck-btn:hover  { background: var(--orange); color: var(--black); }
+#stuck-btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--black); }
+
+@media(max-width:640px){
+  #modal-title { font-size:14px; }
+  #modal-body  { font-size:17px; }
+  .mbtn        { font-size:9px; padding:12px 20px; min-height:44px; }
+  .info-val    { font-size:20px; }
+  #ui-eq       { font-size:12px; }
+  #scorebar .sb-val { font-size:11px; }
+  .lvl-btn     { width:32px; height:32px; font-size:9px; }
+  #stuck-title { font-size:9px; }
+  #stuck-picked, #stuck-needed { font-size:16px; }
+  .tc-btn  { width:64px; height:64px; }
+  #tc-up, #tc-down { width:54px; height:50px; }
+  #tc-jump { width:78px; height:78px; }
+}
+@media(max-width:380px){
+  .tc-btn  { width:56px; height:56px; font-size:17px; }
+  #tc-up, #tc-down { width:48px; height:44px; font-size:13px; }
+  #tc-jump { width:68px; height:68px; font-size:8px; }
+}
+@media(orientation:landscape) and (max-height:480px){
+  #touch-controls {
+    position:fixed; right:0; top:0; bottom:0;
+    width:auto; min-width:118px;
+    flex-direction:column;
+    padding: 8px calc(8px + var(--sar)) 8px 8px;
+    border-top:none; border-left:2px solid rgba(0,229,255,.25);
+    justify-content:center;
+  }
+  #tc-left-cluster { flex-direction:column; }
+  #tc-ud           { flex-direction:row; }
+  #wrap { padding-right:118px; }
+}
+</style>
+</head>
+<body>
+
+<div id="wrap">
+  <div id="scorebar">
+    <div class="sb-item">
+      <span class="sb-label">SCORE</span>
+      <span class="sb-val" id="ui-score">0</span>
+    </div>
+    <div class="sb-item">
+      <span class="sb-label">LEVEL</span>
+      <span class="sb-val" id="ui-level">1</span>
+    </div>
+    <div class="sb-item">
+      <span class="sb-label">HI-SCORE</span>
+      <span class="sb-val" id="ui-hi">0</span>
+    </div>
+    <div class="sb-item" id="sb-lives">
+      <span class="sb-label">LIVES</span>
+      <span id="ui-lives">♥ ♥ ♥</span>
+    </div>
+    <button id="pauseHudBtn" aria-label="Pause">⏸</button>
+    <button id="fullscreenBtn" aria-label="Fullscreen">⛶</button>
+  </div>
+
+  <div id="infobar">
+    <div class="info-block">
+      <span class="info-label">TARGET</span>
+      <span class="info-val" id="ui-target">?</span>
+    </div>
+    <div class="info-block">
+      <span class="info-label">EQUATION</span>
+      <span class="info-val" id="ui-eq">_</span>
+    </div>
+    <div class="info-block">
+      <span class="info-label">TIME</span>
+      <span class="info-val" id="ui-time">60</span>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas" width="800" height="520"></canvas>
+
+  <!-- Touch controls — shown only on touch/coarse-pointer devices via JS -->
+  <div id="touch-controls">
+    <div id="tc-left-cluster">
+      <button class="tc-btn" id="tc-left"  aria-label="Move left">◀</button>
+      <div id="tc-ud">
+        <button class="tc-btn" id="tc-up"   aria-label="Climb up">▲</button>
+        <button class="tc-btn" id="tc-down" aria-label="Climb down">▼</button>
+      </div>
+      <button class="tc-btn" id="tc-right" aria-label="Move right">►</button>
+    </div>
+    <div id="tc-right-cluster">
+      <button class="tc-btn" id="tc-jump"  aria-label="Jump">JUMP</button>
+    </div>
+  </div>
+</div>
+
+<!-- stuck overlay — fixed, slides down from top, no layout shift -->
+<div id="stuck-panel">
+  <div id="stuck-text">
+    <div id="stuck-title">✗ WRONG ITEM — LOOK AT THE BOARD!</div>
+    <div id="stuck-picked"></div>
+    <div id="stuck-needed"></div>
+    <div id="stuck-lives"></div>
+  </div>
+  <button id="stuck-btn">TRY AGAIN</button>
+</div>
+
+
+<!-- flash -->
+<div id="flash"></div>
+
+<!-- First-play hint overlay (touch only, fades after ~4 s) -->
+<div id="control-hint" style="display:none">
+  <div id="control-hint-inner">
+    ◀ ► to move &nbsp;|&nbsp; ▲▼ for ladders<br>
+    JUMP button to jump &nbsp;|&nbsp; ⏸ to pause
+  </div>
+</div>
+
+<!-- pause dialog -->
+<dialog id="pauseDlg">
+  <h2>⏸ PAUSED</h2>
+  <p>Press ESC or tap below<br>to resume</p>
+  <button class="mbtn" id="resumeBtn">▶ RESUME</button>
+</dialog>
+
+<!-- modal -->
+<div id="modal">
+  <div id="modal-box">
+    <div id="modal-title">MATH QUEST</div>
+    <div id="modal-body">
+      ★ COLLECT NUMBERS &amp; OPS ★<br>
+      to match the TARGET!<br><br>
+      <span id="modal-ctrl-desktop">ARROW KEYS to move<br>
+      Z/X/P/L also work<br>
+      SPACE or ENTER to jump<br>
+      Climb LADDERS!<br>
+      ESC = pause</span><span id="modal-ctrl-touch" style="display:none">Use the buttons below<br>
+      to move, climb &amp; jump!<br>
+      Tap ⏸ to pause<br><br><span id="ios-pwa-hint" style="display:none;font-size:16px;color:#f5a623">Tip: Add to Home Screen<br>for true fullscreen!</span></span>
+    </div>
+    <div id="level-picker">
+      <div id="level-picker-label">START AT LEVEL</div>
+      <div id="level-picker-row"></div>
+    </div>
+    <div id="modal-btns">
+      <button class="mbtn" id="startBtn">► START GAME</button>
+      <button class="mbtn" id="continueBtn" style="display:none;background:var(--green);">► CONTINUE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  TOUCH DETECTION — declared first so all functions can reference it
+// ═══════════════════════════════════════════════════════
+const isTouchDevice = window.matchMedia('(pointer: coarse)').matches
+                   || ('ontouchstart' in window);
+
+// ═══════════════════════════════════════════════════
+//  WEB AUDIO — tiny chiptune sounds (no dependencies)
+// ═══════════════════════════════════════════════════
+const AC = new (window.AudioContext || window.webkitAudioContext)();
+
+function playTone(freq, type, dur, vol=0.3, startDelay=0) {
+  const t = AC.currentTime + startDelay;
+  const osc = AC.createOscillator();
+  const gain = AC.createGain();
+  osc.connect(gain); gain.connect(AC.destination);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t);
+  gain.gain.setValueAtTime(vol, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  osc.start(t);
+  osc.stop(t + dur + 0.01);
+}
+
+function sfxPickup() {
+  // ascending arp
+  playTone(330, 'square', .07, .25, 0);
+  playTone(494, 'square', .07, .25, .07);
+  playTone(659, 'square', .10, .25, .14);
+}
+
+function sfxSuccess() {
+  // happy jingle
+  const notes = [523,659,784,1047];
+  notes.forEach((f,i) => playTone(f,'square',.12,.28,i*.1));
+  playTone(1319,'triangle',.3,.2,.45);
+}
+
+function sfxFail() {
+  playTone(200,'sawtooth',.15,.3,0);
+  playTone(150,'sawtooth',.25,.3,.1);
+}
+
+function sfxTimeTick() {
+  playTone(880,'square',.05,.15,0);
+}
+
+function sfxJump() {
+  const osc = AC.createOscillator();
+  const gain = AC.createGain();
+  osc.connect(gain); gain.connect(AC.destination);
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(200, AC.currentTime);
+  osc.frequency.linearRampToValueAtTime(500, AC.currentTime + .12);
+  gain.gain.setValueAtTime(.2, AC.currentTime);
+  gain.gain.exponentialRampToValueAtTime(.001, AC.currentTime + .13);
+  osc.start(AC.currentTime); osc.stop(AC.currentTime + .14);
+}
+
+// Unlock AudioContext on first interaction (required on iOS Safari)
+function unlockAudio() { if (AC.state === 'suspended') AC.resume(); }
+document.addEventListener('pointerdown', unlockAudio, {once:true});
+document.addEventListener('touchstart',  unlockAudio, {once:true, passive:true});
+document.addEventListener('keydown',     unlockAudio, {once:true});
+
+// ═══════════════════════════════════════════════════
+//  CANVAS SETUP
+// ═══════════════════════════════════════════════════
+const canvas = document.getElementById('gameCanvas');
+const ctx    = canvas.getContext('2d');
+const CW = 800, CH = 520;
+
+function resizeCanvas() {
+  const tc  = document.getElementById('touch-controls');
+  const sb  = document.getElementById('scorebar');
+  const ib  = document.getElementById('infobar');
+  const tcH = (isTouchDevice && tc) ? (tc.offsetHeight || 110) : 0;
+  const sbH = sb ? (sb.offsetHeight || 44) : 44;
+  const ibH = ib ? (ib.offsetHeight || 60) : 60;
+  const gap = 6 * 3;
+  const availH = window.innerHeight - tcH - sbH - ibH - gap - 10;
+  const availW = Math.min(800, window.innerWidth);
+  const ar = CW / CH;
+  let w = availW, h = availW / ar;
+  if (h > availH) { h = availH; w = h * ar; }
+  canvas.style.width  = Math.floor(w) + 'px';
+  canvas.style.height = Math.floor(h) + 'px';
+}
+window.addEventListener('load',   () => setTimeout(resizeCanvas, 60));
+window.addEventListener('resize', () => setTimeout(resizeCanvas, 60));
+resizeCanvas();
+
+// ═══════════════════════════════════════════════════
+//  PIXEL PALETTE helpers
+// ═══════════════════════════════════════════════════
+// Draw a "chunky pixel" rect with optional highlight/shadow bevel
+function pixRect(x,y,w,h,fill,hi=null,sh=null) {
+  ctx.fillStyle = fill;
+  ctx.fillRect(x,y,w,h);
+  if (hi) {
+    ctx.fillStyle = hi;
+    ctx.fillRect(x,y,w,2);
+    ctx.fillRect(x,y,2,h);
+  }
+  if (sh) {
+    ctx.fillStyle = sh;
+    ctx.fillRect(x,y+h-2,w,2);
+    ctx.fillRect(x+w-2,y,2,h);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  GAME STATE
+// ═══════════════════════════════════════════════════
+const G = {
+  state: 'menu',   // menu playing paused levelComplete gameOver
+  level: 1,
+  score: 0,
+  lives: 3,
+  hiScore: +localStorage.getItem('mq2_hi') || 0,
+  targetNumber: 0,
+  equation: [],
+  timeLeft: 60,
+  lastTS: 0,
+  particles: [],
+  stars: [],
+  shownControlHint: !!localStorage.getItem('mq2_hintSeen'),
+};
+
+// fixed star field
+for (let i=0;i<80;i++) G.stars.push({
+  x: Math.random()*CW,
+  y: Math.random()*CH,
+  s: Math.random()<.3 ? 2 : 1,
+  b: .3+Math.random()*.7
+});
+
+// ═══════════════════════════════════════════════════
+//  PLAYER
+// ═══════════════════════════════════════════════════
+const P = {
+  x:80, y:400, w:20, h:26,
+  vx:0, vy:0,
+  speed:3.2,
+  jumpPow:12,
+  grav:0.55,
+  onGround:false,
+  onLadder:false,
+  dir:1,
+  wasJump:false,
+  animFrame:0,
+  animTick:0,
+  // sprite colors
+  bodyCol:  '#e74c3c',
+  pantCol:  '#2980b9',
+  skinCol:  '#f5cba7',
+  hatCol:   '#e74c3c',
+};
+
+// ═══════════════════════════════════════════════════
+//  LEVEL DATA
+// ═══════════════════════════════════════════════════
+let platforms=[], ladders=[], collectibles=[];
+
+// Donkey Kong-inspired multi-floor layout
+const LEVEL_TEMPLATE = {
+  platforms: [
+    // ground
+    {x:0,   y:490, w:800, h:30, type:'ground'},
+    // floor 4 (low platforms, easy jump from ground)
+    {x:20,  y:390, w:340, h:18, type:'plat'},
+    {x:440, y:390, w:340, h:18, type:'plat'},
+    // floor 3
+    {x:60,  y:300, w:260, h:18, type:'plat'},
+    {x:480, y:300, w:260, h:18, type:'plat'},
+    // floor 2
+    {x:20,  y:210, w:360, h:18, type:'plat'},
+    {x:420, y:210, w:360, h:18, type:'plat'},
+    // floor 1 (top)
+    {x:160, y:120, w:480, h:18, type:'plat'},
+  ],
+  ladders: [
+    {x:320, y:390, w:26, h:100},  // floor4→gnd
+    {x:460, y:390, w:26, h:100},
+    {x:100, y:300, w:26, h:90},   // floor3→4
+    {x:660, y:300, w:26, h:90},
+    {x:340, y:210, w:26, h:90},   // floor2→3
+    {x:480, y:210, w:26, h:90},
+    {x:220, y:120, w:26, h:90},   // floor1→2
+    {x:560, y:120, w:26, h:90},
+  ],
+};
+
+// Spawn positions grouped by difficulty tier
+// Tier 0 = ground level walk-right easy, Tier 1 = first platform (easy jump),
+// Tier 2 = second floor, Tier 3 = upper floors
+const SPAWN_TIERS = [
+  // Tier 0 — ground, totally flat, near start
+  [{x:160, y:455}, {x:280, y:455}, {x:420, y:455}, {x:560, y:455}, {x:680, y:455}],
+  // Tier 1 — low platforms (floor 4), reachable with one short jump or ladder
+  [{x:60,  y:358}, {x:160, y:358}, {x:500, y:358}, {x:640, y:358}],
+  // Tier 2 — medium height (floor 3)
+  [{x:100, y:268}, {x:580, y:268}],
+  // Tier 3 — upper floors
+  [{x:80,  y:178}, {x:460, y:178}, {x:300, y:88}, {x:500, y:88}],
+];
+
+// Return a shuffled list of spawn positions appropriate for this level.
+// Early levels: mostly low tiers. Later levels: full map.
+function getSpawnPositions() {
+  const lv = G.level;
+  // Pick which tiers are in play — higher tiers unlocked as level increases
+  let tierCount;
+  if      (lv <= 2) tierCount = 2;  // ground + floor4
+  else if (lv <= 4) tierCount = 3;  // + floor3
+  else if (lv <= 6) tierCount = 4;  // all floors
+  else              tierCount = 4;
+
+  // Gather all positions from active tiers (no duplicates)
+  const pool = [];
+  for (let t = 0; t < tierCount; t++) {
+    for (const p of SPAWN_TIERS[t]) pool.push({...p});
+  }
+
+  // Fisher-Yates shuffle
+  for (let i = pool.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool;
+}
+
+// ─────────────────────────────────────────────────
+function getLevelConfig() {
+  const lv = G.level;
+  if (lv <= 2) return {
+    numbers: [1,2,3,4,5,6,7,8,9,10],
+    operators: ['+','-'],
+    extraNums: 1,   // number distractors to add
+    extraOps:  0,   // operator distractors to add
+  };
+  if (lv <= 4) return {
+    numbers: [1,2,3,4,5,6,7,8,9,10],
+    operators: ['+','-'],
+    extraNums: 2,
+    extraOps:  1,
+  };
+  if (lv <= 6) return {
+    numbers: [2,3,4,5,6,7,8,9,10,12],
+    operators: ['+','-','×','÷'],
+    extraNums: 3,
+    extraOps:  1,
+  };
+  if (lv <= 8) return {
+    numbers: [2,3,4,5,6,7,8,9,10,12],
+    operators: ['+','-','×','÷'],
+    extraNums: 3,
+    extraOps:  2,
+  };
+  return {
+    numbers: [2,3,4,5,6,7,8,9,10,12],
+    operators: ['+','-','×','÷','²','√'],
+    extraNums: 4,
+    extraOps:  2,
+  };
+}
+
+function generateEquation(cfg) {
+  const ops = cfg.operators;
+  const lv  = G.level;
+
+  if (lv <= 4) {
+    // Simple addition or subtraction, small numbers
+    const a = ri(1,9), b = ri(1,9);
+    const op = pick(ops);
+    if (op === '+') return { items:[a, '+', b], target:a+b };
+    const big=Math.max(a,b), sm=Math.min(a,b);
+    return { items:[big, '-', sm], target:big-sm };
+  }
+  if (lv <= 8) {
+    const op = pick(ops);
+    if (op === '×') { const a=ri(2,9),b=ri(2,9); return {items:[a,'×',b], target:a*b}; }
+    if (op === '÷') { const d=ri(2,8),q=ri(2,9); return {items:[d*q,'÷',d], target:q}; }
+    const a=ri(2,12), b=ri(2,12);
+    if (op === '+') return {items:[a,'+',b], target:a+b};
+    const big=Math.max(a,b), sm=Math.min(a,b);
+    return {items:[big,'-',sm], target:big-sm};
+  }
+  // Level 9+: include squares / square roots
+  if (ops.includes('²') && Math.random() > 0.5) {
+    const a = ri(2,9); return {items:[a,'²'], target:a*a};
+  }
+  if (ops.includes('√') && Math.random() > 0.5) {
+    const sqs=[4,9,16,25,36,49,64];
+    const sq=pick(sqs); return {items:['√',sq], target:Math.sqrt(sq)};
+  }
+  const a=ri(2,10), b=ri(2,10), op=pick(['+','-','×']);
+  if (op==='+') return {items:[a,'+',b], target:a+b};
+  if (op==='×') return {items:[a,'×',b], target:a*b};
+  const big=Math.max(a,b), sm=Math.min(a,b);
+  return {items:[big,'-',sm], target:big-sm};
+}
+
+function ri(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function generateLevel() {
+  platforms = LEVEL_TEMPLATE.platforms.map(p=>({...p}));
+  ladders   = LEVEL_TEMPLATE.ladders.map(l=>({...l}));
+  collectibles = [];
+
+  const cfg = getLevelConfig();
+  const sol = generateEquation(cfg);
+  G.targetNumber  = sol.target;
+  G.solution      = sol.items;   // ← store exact solution items for win checking
+
+  // Solution numbers and operators
+  const solNums = sol.items.filter(v => typeof v === 'number');
+  const solOps  = sol.items.filter(v => typeof v === 'string');
+
+  // ── Number distractors: wrong numbers that DON'T accidentally solve the puzzle ──
+  const usedNums = new Set(solNums);
+  const numPool  = cfg.numbers.filter(n => !usedNums.has(n));
+  // Shuffle numPool
+  for (let i=numPool.length-1;i>0;i--){const j=ri(0,i);[numPool[i],numPool[j]]=[numPool[j],numPool[i]];}
+  const extraNums = numPool.slice(0, cfg.extraNums);
+
+  // ── Operator distractors: operators not in the solution ──
+  const extraOps = cfg.operators
+    .filter(o => !solOps.includes(o))
+    .slice(0, cfg.extraOps);
+
+  // All items together, shuffled
+  const allItems = [...sol.items, ...extraNums, ...extraOps];
+  for (let i=allItems.length-1;i>0;i--){
+    const j=ri(0,i);[allItems[i],allItems[j]]=[allItems[j],allItems[i]];
+  }
+
+  // Spawn positions — grab enough for all items
+  const pos = getSpawnPositions().slice(0, allItems.length);
+  // Shuffle positions too
+  for (let i=pos.length-1;i>0;i--){const j=ri(0,i);[pos[i],pos[j]]=[pos[j],pos[i]];}
+
+  allItems.forEach((v, i) => {
+    if (i >= pos.length) return;
+    const p = pos[i];
+    collectibles.push({
+      x: p.x, y: p.y - 32, w: 32, h: 32,
+      value: v,
+      collected: false,
+      isOp: typeof v === 'string',
+      glow: 0, floatT: Math.random() * Math.PI * 2,
+      isSolution: sol.items.includes(v),
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════════════════
+const keys = {};
+window.addEventListener('keydown', e => {
+  const m = {ArrowLeft:'l',ArrowRight:'r',ArrowUp:'u',ArrowDown:'d',
+             'z':'l','x':'r','p':'u','l':'d',' ':'j',Enter:'j',Escape:'esc'};
+  const a = m[e.key];
+  if (!a) return;
+  if (a==='esc') { togglePause(); e.preventDefault(); return; }
+  if (G.state==='playing') { keys[a]=true; e.preventDefault(); }
+});
+window.addEventListener('keyup', e => {
+  const m = {ArrowLeft:'l',ArrowRight:'r',ArrowUp:'u',ArrowDown:'d',
+             'z':'l','x':'r','p':'u','l':'d',' ':'j',Enter:'j'};
+  const a = m[e.key];
+  if (a) keys[a]=false;
+});
+
+// ═══ ON-SCREEN TOUCH BUTTONS ═══
+// Pointer Events API — safe from all iOS/Android OS gesture conflicts.
+// setPointerCapture ensures no missed releases even when thumb slides off.
+const activePointers = {}; // pointerId → action
+
+function bindTouchBtn(id, action) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    unlockAudio();
+    el.setPointerCapture(e.pointerId);
+    activePointers[e.pointerId] = action;
+    keys[action] = true;
+    el.classList.add('pressed');
+  }, {passive: false});
+  const release = e => {
+    e.preventDefault();
+    if (activePointers[e.pointerId] === action) {
+      delete activePointers[e.pointerId];
+      if (!Object.values(activePointers).includes(action)) keys[action] = false;
+    }
+    el.classList.remove('pressed');
+  };
+  el.addEventListener('pointerup',     release, {passive: false});
+  el.addEventListener('pointercancel', release, {passive: false});
+  el.addEventListener('contextmenu',   e => e.preventDefault());
+}
+
+if (isTouchDevice) {
+  // Show touch UI
+  document.getElementById('touch-controls').style.display = 'flex';
+  document.getElementById('pauseHudBtn').style.display    = 'flex';
+  document.getElementById('modal-ctrl-desktop').style.display = 'none';
+  document.getElementById('modal-ctrl-touch').style.display   = 'inline';
+
+  // Show iOS "Add to Home Screen" nudge if on iOS browser (not PWA)
+  if (isIOS() && !isRunningAsPWA()) {
+    document.getElementById('ios-pwa-hint').style.display = 'inline';
+  }
+  // Block browser swipe/scroll gestures on the canvas
+  canvas.addEventListener('touchstart', e => e.preventDefault(), {passive:false});
+  canvas.addEventListener('touchmove',  e => e.preventDefault(), {passive:false});
+  canvas.addEventListener('touchend',   e => e.preventDefault(), {passive:false});
+}
+
+bindTouchBtn('tc-left',  'l');
+bindTouchBtn('tc-right', 'r');
+bindTouchBtn('tc-up',    'u');
+bindTouchBtn('tc-down',  'd');
+bindTouchBtn('tc-jump',  'j');
+
+// Pause HUD button (touch only)
+document.getElementById('pauseHudBtn').addEventListener('pointerdown', e => {
+  e.preventDefault(); unlockAudio(); togglePause();
+}, {passive: false});
+
+// ═══ FULLSCREEN ═══
+// Works on Android Chrome/Firefox. On iOS Safari (browser tab) requestFullscreen
+// is a no-op — the button is hidden in that case. On iOS PWA (Add to Home Screen)
+// the manifest sets display:fullscreen so the button is hidden via CSS.
+const fsBtn = document.getElementById('fullscreenBtn');
+
+function isFullscreenSupported() {
+  return !!(
+    document.documentElement.requestFullscreen  ||
+    document.documentElement.webkitRequestFullscreen
+  );
+}
+
+function isRunningAsPWA() {
+  return window.matchMedia('(display-mode: fullscreen)').matches
+      || window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+}
+
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function updateFsButton() {
+  const inFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  fsBtn.textContent  = inFS ? '✕' : '⛶';
+  fsBtn.title        = inFS ? 'Exit fullscreen' : 'Fullscreen';
+  fsBtn.style.opacity = inFS ? '0.4' : '1';
+}
+
+function toggleFullscreen() {
+  unlockAudio();
+  const inFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  if (inFS) {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (exit) exit.call(document).catch(() => {});
+  } else {
+    const el   = document.documentElement;
+    const req  = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) req.call(el, { navigationUI: 'hide' }).catch(() => {});
+  }
+}
+
+// Show fullscreen button on touch devices where it's supported and useful
+if (isTouchDevice && isFullscreenSupported() && !isRunningAsPWA()) {
+  // Show on Android; hide on iOS Safari where the API does nothing in a browser tab
+  if (!isIOS()) {
+    fsBtn.style.display = 'flex';
+  } else {
+    // iOS: show a subtle "Add to Home Screen" nudge in the modal instead
+    fsBtn.style.display = 'none';
+  }
+}
+
+fsBtn.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  toggleFullscreen();
+}, { passive: false });
+
+document.addEventListener('fullscreenchange',       updateFsButton);
+document.addEventListener('webkitfullscreenchange', updateFsButton);
+
+// Re-run resize when entering/leaving fullscreen (dimensions change)
+document.addEventListener('fullscreenchange',       () => setTimeout(resizeCanvas, 80));
+document.addEventListener('webkitfullscreenchange', () => setTimeout(resizeCanvas, 80));
+
+
+// Pulse UP/DOWN buttons when player is on a ladder
+function updateLadderHint() {
+  if (!isTouchDevice) return;
+  document.getElementById('tc-up').classList.toggle('ladder-hint', P.onLadder);
+  document.getElementById('tc-down').classList.toggle('ladder-hint', P.onLadder);
+}
+
+// auto pause on hide
+document.addEventListener('visibilitychange', ()=>{
+  if (document.hidden && G.state==='playing') togglePause();
+});
+window.addEventListener('blur', ()=>{
+  if (G.state==='playing') togglePause();
+});
+
+// ═══════════════════════════════════════════════════
+//  PAUSE
+// ═══════════════════════════════════════════════════
+function togglePause() {
+  const dlg = document.getElementById('pauseDlg');
+  if (G.state==='playing') {
+    G.state='paused';
+    dlg.showModal();
+    // Clear all held inputs so nothing gets "stuck" after pausing mid-press
+    for (const k of Object.keys(keys)) keys[k] = false;
+    for (const id of Object.keys(activePointers)) delete activePointers[id];
+    document.querySelectorAll('.tc-btn').forEach(b => b.classList.remove('pressed'));
+  } else if (G.state==='paused') {
+    G.state='playing';
+    dlg.close();
+  }
+}
+document.getElementById('resumeBtn').onclick = () => {
+  if (G.state==='paused') togglePause();
+};
+document.getElementById('pauseDlg').addEventListener('cancel', e => {
+  e.preventDefault();
+  if (G.state==='paused') togglePause();
+});
+
+// ═══════════════════════════════════════════════════
+//  START LEVEL
+// ═══════════════════════════════════════════════════
+function startLevel() {
+  hideStuckPanel();
+  G.state    = 'playing';
+  G.equation = [];
+  G.timeLeft = Math.max(30, 60 - (G.level-1)*2);
+  G.particles= [];
+
+  P.x=80; P.y=400; P.vx=0; P.vy=0;
+  P.onGround=false; P.onLadder=false;
+  P.animFrame=0; P.animTick=0;
+
+  generateLevel();
+  updateHUD();
+  updateEqDisplay();
+  setTimeout(resizeCanvas, 30);
+
+  // First-play control hint on touch devices (shown once, remembered in localStorage)
+  if (isTouchDevice && !G.shownControlHint) {
+    G.shownControlHint = true;
+    localStorage.setItem('mq2_hintSeen', '1');
+    const hint = document.getElementById('control-hint');
+    hint.style.display = 'flex';
+    setTimeout(() => { hint.style.display = 'none'; }, 4200);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  PHYSICS
+// ═══════════════════════════════════════════════════
+function updatePlayer(dt) {
+  // horizontal
+  P.vx = keys.l ? -P.speed : keys.r ? P.speed : 0;
+  if (P.vx !== 0) P.dir = P.vx > 0 ? 1 : -1;
+
+  // ladder check
+  P.onLadder = false;
+  for (const ld of ladders) {
+    const pcx = P.x + P.w/2;
+    if (pcx > ld.x && pcx < ld.x+ld.w &&
+        P.y+P.h > ld.y && P.y < ld.y+ld.h) {
+      P.onLadder = true; break;
+    }
+  }
+
+  if (P.onLadder) {
+    P.vy = 0;
+    if (keys.u) P.vy = -P.speed;
+    if (keys.d) P.vy =  P.speed;
+  } else {
+    if (!P.onGround) { P.vy += P.grav; P.vy = Math.min(P.vy, 16); }
+  }
+
+  // jump
+  if (keys.j && !P.wasJump && (P.onGround || P.onLadder)) {
+    P.vy = -P.jumpPow;
+    P.onGround = false; P.onLadder = false;
+    sfxJump();
+  }
+  P.wasJump = !!keys.j;
+
+  P.x += P.vx;
+  P.y += P.vy;
+
+  // boundary
+  if (P.x < 0) P.x = 0;
+  if (P.x+P.w > CW) P.x = CW-P.w;
+
+  // platform collision (top only)
+  P.onGround = false;
+  for (const pl of platforms) {
+    if (P.x+P.w > pl.x && P.x < pl.x+pl.w) {
+      const prevBottom = P.y+P.h - P.vy;
+      if (prevBottom <= pl.y && P.y+P.h >= pl.y) {
+        P.y = pl.y - P.h;
+        P.vy = 0;
+        P.onGround = true;
+      }
+    }
+  }
+
+  // fell off
+  if (P.y > CH + 40) {
+    loseLife();
+  }
+
+  // animate
+  P.animTick++;
+  if (P.animTick > 6) { P.animTick=0; P.animFrame=(P.animFrame+1)%4; }
+
+  // collectible pickup
+  for (const c of collectibles) {
+    if (c.collected) continue;
+    if (P.x+P.w > c.x && P.x < c.x+c.w &&
+        P.y+P.h > c.y && P.y < c.y+c.h) {
+      pickupItem(c);
+    }
+  }
+  updateLadderHint();
+}
+
+function loseLife() {
+  G.lives--;
+  sfxFail();
+  P.x=80; P.y=400; P.vx=0; P.vy=0;
+  if (G.lives <= 0) {
+    endGame();
+  } else {
+    flashMsg('☠ OOPS!', '#e74c3c');
+    updateHUD();
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  COLLECT LOGIC
+// ═══════════════════════════════════════════════════
+function pickupItem(item) {
+  item.collected = true;
+  sfxPickup();
+  spawnParticles(item.x+item.w/2, item.y+item.h/2, item.isOp ? '#f7e733' : '#a8ff3e');
+  G.equation.push(item.value);
+  updateEqDisplay();
+
+  // Check if any combination of collected items solves the target
+  if (checkForSolution()) {
+    triggerWin();
+    return;
+  }
+
+  // Check if it's now impossible with all remaining items too
+  if (isImpossible()) {
+    G.lives--;
+    sfxFail();
+    updateHUD();
+    showStuckPanel();
+  }
+}
+
+function triggerWin() {
+  sfxSuccess();
+  G.score += 100 * G.level + Math.ceil(G.timeLeft) * 5;
+  G.level++;
+  G.state = 'levelComplete';
+  if (G.score > G.hiScore) {
+    G.hiScore = G.score;
+    localStorage.setItem('mq2_hi', G.hiScore);
+  }
+  flashMsg('✓ CORRECT!', '#a8ff3e');
+  setTimeout(()=>{
+    showModal('LEVEL CLEAR!', `Score: ${G.score}\nLevel ${G.level} next!`, { startBtn: 'CONTINUE' });
+  }, 900);
+}
+
+function showStuckPanel() {
+  G.state = 'impossible';
+
+  const collected = G.equation.map(v => String(v)).join('  ');
+  const needed    = G.solution.map(v => String(v)).join('  ');
+
+  document.getElementById('stuck-picked').textContent =
+    `You collected: ${collected}`;
+  document.getElementById('stuck-needed').textContent =
+    `You needed:  ${needed}  =  ${G.targetNumber}`;
+  document.getElementById('stuck-lives').textContent =
+    G.lives > 0
+      ? `Lives left: ${'♥ '.repeat(G.lives).trim()}`
+      : '☠  No lives left!';
+  document.getElementById('stuck-btn').textContent =
+    G.lives > 0 ? '► TRY AGAIN' : '► GAME OVER';
+
+  document.getElementById('stuck-panel').classList.add('show');
+
+  // Mark solution collectibles for highlight drawing
+  for (const c of collectibles) {
+    c.highlight = c.isSolution && !c.collected;
+  }
+}
+
+function hideStuckPanel() {
+  document.getElementById('stuck-panel').classList.remove('show');
+  for (const c of collectibles) c.highlight = false;
+}
+
+document.getElementById('stuck-btn').addEventListener('click', () => {
+  unlockAudio();
+  hideStuckPanel();
+  if (G.lives <= 0) {
+    endGame();
+  } else {
+    startLevel();
+  }
+});
+
+// Impossible when the collected items can no longer form a subset of the solution —
+// i.e. the player grabbed a distractor that uses up a "slot" that can't be matched.
+function isImpossible() {
+  if (G.equation.length < 1) return false;
+
+  const sol = G.solution;
+  const eq  = G.equation;
+
+  // If we've collected more items than the solution needs, it's impossible
+  if (eq.length > sol.length) return true;
+
+  // Check that every item collected so far appears in the solution
+  // with sufficient count (eq must be a sub-multiset of sol)
+  const freq = {};
+  for (const v of sol) {
+    const k = String(v) + (typeof v);
+    freq[k] = (freq[k] || 0) + 1;
+  }
+  for (const v of eq) {
+    const k = String(v) + (typeof v);
+    if (!freq[k] || freq[k] === 0) return true;  // collected something not in solution
+    freq[k]--;
+  }
+  return false;
+}
+
+function tryOp(a,b,op) {
+  const out=[];
+  if (op==='+') { out.push(a+b); }
+  if (op==='-') { out.push(a-b); out.push(b-a); }
+  if (op==='×') { out.push(a*b); }
+  if (op==='÷') { if (b!==0) out.push(a/b); if (a!==0) out.push(b/a); }
+  if (op==='²') { out.push(a*a); out.push(b*b); }
+  if (op==='√') { out.push(Math.sqrt(a)); out.push(Math.sqrt(b)); }
+  return out;
+}
+
+function isNum(v)  { return typeof v === 'number'; }
+function isOp(v)   { return typeof v === 'string'; }
+
+// Win only when the player has collected exactly the solution items
+// (no more, no less — right numbers AND right operator).
+// We compare multisets: collected items must match G.solution exactly.
+function checkForSolution() {
+  const sol = G.solution;
+  const eq  = G.equation;
+
+  // Must have collected at least as many items as the solution needs
+  if (eq.length < sol.length) return false;
+
+  // Build frequency maps and compare
+  // eq may have MORE items than sol (they collected extra distractors too),
+  // so check that sol is a subset of eq with matching counts.
+  const freq = {};
+  for (const v of eq) {
+    const k = String(v) + (typeof v); // distinguish num 2 from op "2" (unlikely but safe)
+    freq[k] = (freq[k] || 0) + 1;
+  }
+  for (const v of sol) {
+    const k = String(v) + (typeof v);
+    if (!freq[k] || freq[k] === 0) return false;
+    freq[k]--;
+  }
+  return true;
+}
+
+// ═══════════════════════════════════════════════════
+//  TIMER
+// ═══════════════════════════════════════════════════
+let lastTickSec = -1;
+function updateTimer(dt) {
+  G.timeLeft -= dt;
+  if (G.timeLeft <= 0) { G.timeLeft=0; endGame(); }
+  const secs = Math.ceil(G.timeLeft);
+  document.getElementById('ui-time').textContent = secs;
+  document.getElementById('ui-time').classList.toggle('warn', G.timeLeft<=10);
+  if (secs !== lastTickSec && secs <= 10) { sfxTimeTick(); }
+  lastTickSec = secs;
+}
+
+function updateHUD() {
+  document.getElementById('ui-score').textContent = G.score;
+  document.getElementById('ui-level').textContent = G.level;
+  document.getElementById('ui-hi').textContent    = G.hiScore;
+  document.getElementById('ui-target').textContent = G.targetNumber;
+  const hearts = '♥ '.repeat(Math.max(0,G.lives)).trim();
+  document.getElementById('ui-lives').textContent = hearts || '✗';
+  document.getElementById('ui-time').textContent  = Math.ceil(G.timeLeft);
+}
+
+function updateEqDisplay() {
+  const txt = G.equation.length ? G.equation.join(' ') : '_';
+  document.getElementById('ui-eq').textContent = txt;
+}
+
+// ═══════════════════════════════════════════════════
+//  END GAME
+// ═══════════════════════════════════════════════════
+function endGame() {
+  G.state = 'gameOver';
+  sfxFail();
+  const hiMsg = G.score > G.hiScore
+    ? (G.hiScore = G.score, localStorage.setItem('mq2_hi', G.hiScore), '★ NEW HI-SCORE ★\n')
+    : '';
+  showModal('GAME OVER',
+    `${hiMsg}Score: ${G.score}\nLevel: ${G.level}\nHi: ${G.hiScore}`,
+    {
+      startBtn:    'NEW GAME',
+      continueBtn: `CONTINUE Lv${G.level}`,
+      showPicker:  true,
+      pickerDefault: 1,
+    }
+  );
+}
+
+// ═══════════════════════════════════════════════════
+//  PARTICLES
+// ═══════════════════════════════════════════════════
+function spawnParticles(cx,cy,col) {
+  for (let i=0;i<18;i++) {
+    const a = (i/18)*Math.PI*2;
+    const sp = 1.5+Math.random()*2.5;
+    G.particles.push({
+      x:cx, y:cy, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+      life:1, col, size:3+Math.random()*3
+    });
+  }
+}
+
+function updateParticles(dt) {
+  for (let i=G.particles.length-1;i>=0;i--) {
+    const p = G.particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.08;
+    p.life -= dt*2;
+    if (p.life<=0) G.particles.splice(i,1);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  DRAW
+// ═══════════════════════════════════════════════════
+function drawBg() {
+  // deep space gradient
+  const grd = ctx.createLinearGradient(0,0,0,CH);
+  grd.addColorStop(0,'#0d0d1a');
+  grd.addColorStop(1,'#0d1520');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0,0,CW,CH);
+
+  // stars twinkle
+  const t = Date.now()/1000;
+  for (const s of G.stars) {
+    const alpha = s.b * (0.6 + 0.4*Math.sin(t*1.2 + s.x));
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    ctx.fillRect(s.x, s.y, s.s, s.s);
+  }
+}
+
+function drawPlatforms() {
+  for (const p of platforms) {
+    if (p.type==='ground') {
+      // ground: brick pattern
+      pixRect(p.x, p.y, p.w, p.h, '#7f4f2a','#a06030','#4a2a10');
+      ctx.fillStyle = '#5a3518';
+      for (let bx=p.x; bx<p.x+p.w; bx+=32) {
+        const row2 = bx%64===0;
+        ctx.fillRect(bx, p.y, 1, p.h);
+        ctx.fillRect(bx + (row2?0:16), p.y + p.h/2, 1, p.h/2);
+      }
+      ctx.fillStyle = '#a06030';
+      ctx.fillRect(p.x, p.y, p.w, 3);
+    } else {
+      // platform: steel girder look like DK
+      pixRect(p.x, p.y, p.w, p.h, '#4a8fd4','#7ab8f5','#2c5f8a');
+      // rivet dots
+      ctx.fillStyle = '#1a3a5c';
+      for (let rx=p.x+8; rx<p.x+p.w-8; rx+=24) {
+        ctx.beginPath();
+        ctx.arc(rx, p.y+p.h/2, 2, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+}
+
+function drawLadders() {
+  for (const ld of ladders) {
+    // rails
+    ctx.fillStyle = '#d4a017';
+    ctx.fillRect(ld.x+3,     ld.y, 4, ld.h);
+    ctx.fillRect(ld.x+ld.w-7, ld.y, 4, ld.h);
+    // highlight
+    ctx.fillStyle = '#f7c948';
+    ctx.fillRect(ld.x+3, ld.y, 2, ld.h);
+    ctx.fillRect(ld.x+ld.w-7, ld.y, 2, ld.h);
+    // rungs
+    for (let ry=ld.y+4; ry<ld.y+ld.h; ry+=14) {
+      ctx.fillStyle = '#d4a017';
+      ctx.fillRect(ld.x+3, ry, ld.w-6, 4);
+      ctx.fillStyle = '#f7c948';
+      ctx.fillRect(ld.x+3, ry, ld.w-6, 2);
+    }
+  }
+}
+
+function drawCollectibles() {
+  const t = Date.now()/1000;
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (const c of collectibles) {
+    if (c.collected) continue;
+    const ft = Math.sin(t*2 + c.floatT)*3;
+    const cx = c.x+c.w/2, cy = c.y+c.h/2+ft;
+
+    if (c.highlight) {
+      // ── Highlighted solution item: bright gold pulse ──
+      const pulse = 0.5 + 0.5*Math.sin(t*6 + c.floatT);
+      const glow  = 18 + pulse*18;
+
+      // Dark backdrop so it stands out
+      ctx.shadowColor = '#ffdd00';
+      ctx.shadowBlur  = glow;
+      pixRect(c.x-4, c.y+ft-4, c.w+8, c.h+8, '#7a5500');
+      pixRect(c.x-2, c.y+ft-2, c.w+4, c.h+4, `rgba(255,220,0,${0.6+pulse*0.4})`);
+      pixRect(c.x,   c.y+ft,   c.w,   c.h,   '#ffe135', 'rgba(255,255,255,.8)', '#aa8800');
+
+      // Arrow pointing down above the item
+      ctx.shadowBlur = 0;
+      ctx.fillStyle  = '#ffdd00';
+      ctx.font = 'bold 14px "Press Start 2P", monospace';
+      ctx.fillText('▼', cx, c.y + ft - 12);
+
+      // Text
+      ctx.fillStyle = '#1a0a00';
+      const label = String(c.value);
+      ctx.font = `bold ${label.length>2?'11px':'14px'} "Press Start 2P", monospace`;
+      ctx.fillText(label, cx, cy+1);
+
+    } else {
+      // ── Normal item ──
+      const col  = c.isOp ? '#f7e733' : '#a8ff3e';
+      const dark = c.isOp ? '#7a6500' : '#1e6000';
+
+      ctx.shadowColor = col;
+      ctx.shadowBlur  = 10+Math.sin(t*3+c.floatT)*4;
+
+      pixRect(c.x-1, c.y+ft-1, c.w+2, c.h+2, dark);
+      pixRect(c.x,   c.y+ft,   c.w,   c.h,   col, 'rgba(255,255,255,.5)', dark);
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#0d0d0d';
+      const label = String(c.value);
+      ctx.font = `bold ${label.length>2?'11px':'14px'} "Press Start 2P", monospace`;
+      ctx.fillText(label, cx, cy+1);
+    }
+  }
+  ctx.restore();
+}
+
+function drawPlayer() {
+  const x=Math.round(P.x), y=Math.round(P.y);
+  const w=P.w, h=P.h;
+  const flip = P.dir < 0;
+
+  ctx.save();
+  if (flip) {
+    ctx.translate(x+w, y);
+    ctx.scale(-1,1);
+  } else {
+    ctx.translate(x,y);
+  }
+
+  // hat (red, like Mario-ish)
+  ctx.fillStyle = '#c0392b';
+  ctx.fillRect(1,0,w-2,5);   // brim
+  ctx.fillRect(3,0,w-6,5);
+
+  // face / skin
+  ctx.fillStyle = '#f5cba7';
+  ctx.fillRect(3,5,w-6,7);
+
+  // hair/hat top
+  ctx.fillStyle = '#c0392b';
+  ctx.fillRect(2,1,w-4,5);
+
+  // eyes
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(5,7,3,3);
+  ctx.fillRect(12,7,3,3);
+  // eye whites
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(5,7,2,2);
+  ctx.fillRect(12,7,2,2);
+
+  // body / shirt
+  ctx.fillStyle = '#e74c3c';
+  ctx.fillRect(2,12,w-4,8);
+  // overalls strap
+  ctx.fillStyle = '#2980b9';
+  ctx.fillRect(4,12,4,8);
+  ctx.fillRect(w-8,12,4,8);
+
+  // pants
+  ctx.fillStyle = '#2980b9';
+  ctx.fillRect(2,20,w-4,4);
+
+  // legs (animated)
+  const legOff = P.onGround && P.vx!==0 ? (P.animFrame%2===0?2:0) : 0;
+  ctx.fillStyle = '#2980b9';
+  ctx.fillRect(2,  24, 6, 4-legOff);
+  ctx.fillRect(12, 24, 6, 4+legOff);
+  // shoes
+  ctx.fillStyle = '#7f4f2a';
+  ctx.fillRect(1,  26, 7, 2);
+  ctx.fillRect(12, 26, 7, 2);
+
+  ctx.restore();
+}
+
+function drawParticles() {
+  for (const p of G.particles) {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.col;
+    ctx.fillRect(p.x-p.size/2, p.y-p.size/2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHint() {
+  if (G.equation.length===0) return;
+  // current equation building hint at bottom
+  ctx.save();
+  ctx.font = '10px "Press Start 2P", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(0,229,255,.6)';
+  ctx.fillText(G.equation.join(' '), CW/2, CH-6);
+  ctx.restore();
+}
+
+function draw() {
+  ctx.clearRect(0,0,CW,CH);
+  drawBg();
+  if (G.state==='playing'||G.state==='paused') {
+    drawPlatforms();
+    drawLadders();
+    drawCollectibles();
+    drawPlayer();
+    drawParticles();
+    drawHint();
+  } else if (G.state==='impossible') {
+    // Frozen board: show everything but no player, highlight solution items
+    drawPlatforms();
+    drawLadders();
+    drawCollectibles();   // solution items will pulse gold
+    drawPlayer();         // player frozen in place
+  } else if (G.state==='menu'||G.state==='gameOver'||G.state==='levelComplete') {
+    drawPlatforms();
+    drawLadders();
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  GAME LOOP
+// ═══════════════════════════════════════════════════
+function loop(ts) {
+  const dt = Math.min((ts - G.lastTS)/1000, 0.05);
+  G.lastTS = ts;
+
+  if (G.state==='playing') {
+    updatePlayer(dt);
+    updateTimer(dt);
+    updateParticles(dt);
+    updateHUD();
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════════
+//  MODAL + LEVEL PICKER
+// ═══════════════════════════════════════════════════
+let pickedStartLevel = 1;
+const MAX_SELECTABLE_LEVEL = 10;
+
+// Build level picker buttons once
+(function buildPicker() {
+  const row = document.getElementById('level-picker-row');
+  for (let i = 1; i <= MAX_SELECTABLE_LEVEL; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'lvl-btn';
+    btn.textContent = i;
+    btn.dataset.lv = i;
+    btn.addEventListener('click', () => selectLevel(i));
+    row.appendChild(btn);
+  }
+})();
+
+function selectLevel(lv) {
+  pickedStartLevel = lv;
+  document.querySelectorAll('.lvl-btn').forEach(b => {
+    b.classList.toggle('sel', +b.dataset.lv === lv);
+  });
+}
+selectLevel(1);
+
+let _pendingGameOver = false; // unused, kept for safety
+
+function showModal(title, body, opts = {}) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = body.replace(/\n/g, '<br>');
+
+  const sb = document.getElementById('startBtn');
+  const cb = document.getElementById('continueBtn');
+  const picker = document.getElementById('level-picker');
+
+  sb.textContent = '► ' + (opts.startBtn || 'NEW GAME');
+  sb.style.display = opts.startBtn === false ? 'none' : 'inline-block';
+
+  if (opts.continueBtn) {
+    cb.textContent = '► ' + opts.continueBtn;
+    cb.style.display = 'inline-block';
+  } else {
+    cb.style.display = 'none';
+  }
+
+  if (opts.showPicker) {
+    picker.classList.add('show');
+    selectLevel(opts.pickerDefault || 1);
+  } else {
+    picker.classList.remove('show');
+  }
+
+  document.getElementById('modal').classList.remove('hide');
+}
+
+function hideModal() {
+  document.getElementById('modal').classList.add('hide');
+}
+
+// ── Start (new game from picked level) ──
+document.getElementById('startBtn').addEventListener('click', () => {
+  unlockAudio();
+  const state = G.state;
+  hideModal();
+  if (state === 'menu' || state === 'gameOver') {
+    // Fresh game from chosen level
+    G.level = pickedStartLevel;
+    G.score = 0;
+    G.lives = 3;
+  }
+  // levelComplete: level already incremented in triggerWin, just start it
+  // impossible: retry same level, keep score/lives
+  startLevel();
+});
+
+// ── Continue from game over (same level, 1 life penalty) ──
+document.getElementById('continueBtn').addEventListener('click', () => {
+  unlockAudio();
+  hideModal();
+  G.lives = 1;
+  startLevel();
+});
+
+// ═══════════════════════════════════════════════════
+//  FLASH MESSAGE
+// ═══════════════════════════════════════════════════
+let flashTimer=null;
+function flashMsg(txt, col='#a8ff3e') {
+  const el = document.getElementById('flash');
+  el.textContent = txt;
+  el.style.color = col;
+  el.style.textShadow = `0 0 20px ${col}`;
+  el.classList.add('show');
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(()=>el.classList.remove('show'), 700);
+}
+
+// ─── boot ──────────────────────────────────────────
+G.hiScore = +localStorage.getItem('mq2_hi') || 0;
+document.getElementById('ui-hi').textContent = G.hiScore;
+// Show level picker on the start screen
+document.getElementById('level-picker').classList.add('show');
+selectLevel(1);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
