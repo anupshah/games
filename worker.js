@@ -1,7 +1,7 @@
 // worker.js - Service Worker for Mini Games PWA
 // Caches all static assets for offline use and updates cache on new deploy
 
-const CACHE_NAME = 'mini-games-v4';
+const CACHE_NAME = 'mini-games-v5';
 const ASSETS = [
   '',
   'index.html',
