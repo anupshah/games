@@ -1,7 +1,7 @@
 // worker.js - Service Worker for Mini Games PWA
 // Caches all static assets for offline use and updates cache on new deploy
 
-const CACHE_NAME = 'mini-games-v6';
+const CACHE_NAME = 'mini-games-v7';
 
 // Dynamically determine base path from service worker location to support
 // localhost vs GitHub Pages deployment without hardcoding paths
