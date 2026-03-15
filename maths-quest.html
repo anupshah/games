@@ -311,8 +311,9 @@ body::after {
   transition:transform .08s, box-shadow .08s;
   margin:4px;
 }
-.mbtn:hover { background:var(--orange); color:var(--black); }
-.mbtn:active { transform:translate(2px,2px); box-shadow:1px 1px 0 var(--black); }
+.mbtn:hover        { background:var(--orange); color:var(--black); }
+.mbtn:active       { transform:translate(2px,2px); box-shadow:1px 1px 0 var(--black); }
+.mbtn:focus-visible { outline-color:var(--cyan); outline-offset:2px; }
 
 /* ── pause dialog ─────────────────────────────────── */
 #pauseDlg {
@@ -368,7 +369,12 @@ body::after {
   gap: 6px;
   max-width: 340px;
 }
+/* Hide the real radio input; the <label> is the visual button */
+.lvl-btn input[type="radio"] {
+  position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;
+}
 .lvl-btn {
+  display: inline-flex; align-items: center; justify-content: center;
   width: 38px; height: 38px;
   background: var(--navy);
   border: 2px solid var(--steel);
@@ -378,11 +384,11 @@ body::after {
   cursor: pointer;
   border-radius: 4px;
   transition: all .1s;
-  outline: none;
 }
-.lvl-btn:hover  { background: var(--sky); border-color: var(--cyan); color: var(--cyan); }
-.lvl-btn.sel    { background: var(--red); border-color: var(--yellow); color: var(--yellow);
-                  box-shadow: 0 0 8px var(--yellow); }
+.lvl-btn:hover                       { background: var(--sky); border-color: var(--cyan); color: var(--cyan); }
+.lvl-btn:has(input:checked)          { background: var(--red); border-color: var(--yellow); color: var(--yellow);
+                                       box-shadow: 0 0 8px var(--yellow); }
+.lvl-btn:has(input:focus-visible)    { outline: 3px solid var(--cyan); outline-offset: 2px; }
 
 /* ── stuck overlay (fixed, slides down from top, no layout shift) ── */
 #stuck-panel {
@@ -454,8 +460,9 @@ body::after {
   flex-shrink: 0;
   transition: transform .08s, box-shadow .08s, background .08s;
 }
-#stuck-btn:hover  { background: var(--orange); color: var(--black); }
-#stuck-btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--black); }
+#stuck-btn:hover        { background: var(--orange); color: var(--black); }
+#stuck-btn:active       { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--black); }
+#stuck-btn:focus-visible { outline-color: var(--yellow); outline-offset: 2px; }
 
 @media(max-width:640px){
   #modal-title { font-size:14px; }
@@ -1129,6 +1136,7 @@ function togglePause() {
   if (G.state==='playing') {
     G.state='paused';
     dlg.showModal();
+    document.getElementById('resumeBtn').focus();
     // Clear all held inputs so nothing gets "stuck" after pausing mid-press
     for (const k of Object.keys(keys)) keys[k] = false;
     for (const id of Object.keys(activePointers)) delete activePointers[id];
@@ -1154,7 +1162,9 @@ function startLevel() {
   G.state    = 'playing';
   G.equation = [];
   G.timeLeft = Math.max(30, 60 - (G.level-1)*2);
+  G.lastTS   = performance.now();   // reset so first-frame dt is accurate
   G.particles= [];
+  lastTickSec = -1;                 // reset countdown tick state
 
   P.x=80; P.y=400; P.vx=0; P.vy=0;
   P.onGround=false; P.onLadder=false;
@@ -1262,8 +1272,104 @@ function loseLife() {
 }
 
 // ═══════════════════════════════════════════════════
+//  EQUATION LOGIC  (pure functions — no globals)
+// ═══════════════════════════════════════════════════
+
+function isNum(v)  { return typeof v === 'number'; }
+function isOp(v)   { return typeof v === 'string'; }
+
+function tryOp(a,b,op) {
+  const out=[];
+  if (op==='+') { out.push(a+b); }
+  if (op==='-') { out.push(a-b); out.push(b-a); }
+  if (op==='×') { out.push(a*b); }
+  if (op==='÷') { if (b!==0) out.push(a/b); if (a!==0) out.push(b/a); }
+  if (op==='²') { out.push(a*a); out.push(b*b); }
+  if (op==='√') { out.push(Math.sqrt(a)); out.push(Math.sqrt(b)); }
+  return out;
+}
+
+// Generate all permutations of an array.
+function permutations(arr) {
+  if (arr.length <= 1) return [arr.slice()];
+  const result = [];
+  for (let i = 0; i < arr.length; i++) {
+    const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
+    for (const perm of permutations(rest)) result.push([arr[i], ...perm]);
+  }
+  return result;
+}
+
+// Evaluate a left-to-right chain: nums[0] ops[0] nums[1] ops[1] ...
+// Returns null for non-integer or divide-by-zero steps.
+function evalChain(nums, ops) {
+  let v = nums[0];
+  for (let i = 0; i < ops.length; i++) {
+    const b = nums[i + 1], op = ops[i];
+    if      (op === '+') v += b;
+    else if (op === '-') v -= b;
+    else if (op === '×') v *= b;
+    else if (op === '÷') {
+      if (b === 0 || !Number.isInteger(v) || v % b !== 0) return null;
+      v /= b;
+    }
+    else return null;
+  }
+  return v;
+}
+
+// Evaluate items in the order they appear: extract numbers in sequence, operators in
+// sequence, then compute num0 op0 num1 op1 num2 … left-to-right.
+// Returns null for structurally invalid combinations (wrong ratio of nums to ops, etc.).
+// This matches what the player sees on-screen — no silent rearranging.
+function evalInOrder(items) {
+  const nums   = items.filter(isNum);
+  const ops    = items.filter(isOp);
+  const unary  = ops.filter(o => o === '²' || o === '√');
+  const binary = ops.filter(o => o !== '²' && o !== '√');
+
+  if (unary.length === 1 && binary.length === 0 && nums.length === 1) {
+    const op = unary[0], n = nums[0];
+    if (op === '²') return n * n;
+    if (op === '√') { const r = Math.sqrt(n); return Number.isInteger(r) ? r : null; }
+  }
+  if (unary.length === 0 && binary.length > 0 && nums.length === binary.length + 1) {
+    return evalChain(nums, binary);
+  }
+  return null;
+}
+
+// Win when the collected items, evaluated in collection order, equal the target.
+function checkForSolution(equation, target) {
+  return evalInOrder(equation) === target;
+}
+
+// Impossible when no ordering of the remaining (not-yet-collected) items, appended to
+// what's already collected, can produce the target via evalInOrder.
+function isImpossible(equation, remaining, target) {
+  if (equation.length < 1) return false;
+  const eq = equation;
+
+  // Try every subset of remaining, and every ordering of that subset appended to eq.
+  function search(start, extra) {
+    for (const perm of permutations(extra)) {
+      if (evalInOrder([...eq, ...perm]) === target) return true;
+    }
+    for (let i = start; i < remaining.length; i++) {
+      extra.push(remaining[i]);
+      if (search(i + 1, extra)) return true;
+      extra.pop();
+    }
+    return false;
+  }
+
+  return !search(0, []);
+}
+
+// ═══════════════════════════════════════════════════
 //  COLLECT LOGIC
 // ═══════════════════════════════════════════════════
+
 function pickupItem(item) {
   item.collected = true;
   sfxPickup();
@@ -1272,13 +1378,14 @@ function pickupItem(item) {
   updateEqDisplay();
 
   // Check if any combination of collected items solves the target
-  if (checkForSolution()) {
+  if (checkForSolution(G.equation, G.targetNumber)) {
     triggerWin();
     return;
   }
 
   // Check if it's now impossible with all remaining items too
-  if (isImpossible()) {
+  const remaining = collectibles.filter(c => !c.collected).map(c => c.value);
+  if (isImpossible(G.equation, remaining, G.targetNumber)) {
     G.lives--;
     sfxFail();
     updateHUD();
@@ -1319,6 +1426,7 @@ function showStuckPanel() {
     G.lives > 0 ? '► TRY AGAIN' : '► GAME OVER';
 
   document.getElementById('stuck-panel').classList.add('show');
+  document.getElementById('stuck-btn').focus();
 
   // Mark solution collectibles for highlight drawing
   for (const c of collectibles) {
@@ -1340,72 +1448,6 @@ document.getElementById('stuck-btn').addEventListener('click', () => {
     startLevel();
   }
 });
-
-// Impossible when the collected items can no longer form a subset of the solution —
-// i.e. the player grabbed a distractor that uses up a "slot" that can't be matched.
-function isImpossible() {
-  if (G.equation.length < 1) return false;
-
-  const sol = G.solution;
-  const eq  = G.equation;
-
-  // If we've collected more items than the solution needs, it's impossible
-  if (eq.length > sol.length) return true;
-
-  // Check that every item collected so far appears in the solution
-  // with sufficient count (eq must be a sub-multiset of sol)
-  const freq = {};
-  for (const v of sol) {
-    const k = String(v) + (typeof v);
-    freq[k] = (freq[k] || 0) + 1;
-  }
-  for (const v of eq) {
-    const k = String(v) + (typeof v);
-    if (!freq[k] || freq[k] === 0) return true;  // collected something not in solution
-    freq[k]--;
-  }
-  return false;
-}
-
-function tryOp(a,b,op) {
-  const out=[];
-  if (op==='+') { out.push(a+b); }
-  if (op==='-') { out.push(a-b); out.push(b-a); }
-  if (op==='×') { out.push(a*b); }
-  if (op==='÷') { if (b!==0) out.push(a/b); if (a!==0) out.push(b/a); }
-  if (op==='²') { out.push(a*a); out.push(b*b); }
-  if (op==='√') { out.push(Math.sqrt(a)); out.push(Math.sqrt(b)); }
-  return out;
-}
-
-function isNum(v)  { return typeof v === 'number'; }
-function isOp(v)   { return typeof v === 'string'; }
-
-// Win only when the player has collected exactly the solution items
-// (no more, no less — right numbers AND right operator).
-// We compare multisets: collected items must match G.solution exactly.
-function checkForSolution() {
-  const sol = G.solution;
-  const eq  = G.equation;
-
-  // Must have collected at least as many items as the solution needs
-  if (eq.length < sol.length) return false;
-
-  // Build frequency maps and compare
-  // eq may have MORE items than sol (they collected extra distractors too),
-  // so check that sol is a subset of eq with matching counts.
-  const freq = {};
-  for (const v of eq) {
-    const k = String(v) + (typeof v); // distinguish num 2 from op "2" (unlikely but safe)
-    freq[k] = (freq[k] || 0) + 1;
-  }
-  for (const v of sol) {
-    const k = String(v) + (typeof v);
-    if (!freq[k] || freq[k] === 0) return false;
-    freq[k]--;
-  }
-  return true;
-}
 
 // ═══════════════════════════════════════════════════
 //  TIMER
@@ -1728,24 +1770,29 @@ function loop(ts) {
 let pickedStartLevel = 1;
 const MAX_SELECTABLE_LEVEL = 10;
 
-// Build level picker buttons once
+// Build level picker — real radio inputs inside styled labels
 (function buildPicker() {
   const row = document.getElementById('level-picker-row');
   for (let i = 1; i <= MAX_SELECTABLE_LEVEL; i++) {
-    const btn = document.createElement('button');
-    btn.className = 'lvl-btn';
-    btn.textContent = i;
-    btn.dataset.lv = i;
-    btn.addEventListener('click', () => selectLevel(i));
-    row.appendChild(btn);
+    const label = document.createElement('label');
+    label.className = 'lvl-btn';
+
+    const radio = document.createElement('input');
+    radio.type  = 'radio';
+    radio.name  = 'start-level';
+    radio.value = i;
+    radio.addEventListener('change', () => { pickedStartLevel = i; });
+
+    label.appendChild(radio);
+    label.appendChild(document.createTextNode(i));
+    row.appendChild(label);
   }
 })();
 
 function selectLevel(lv) {
   pickedStartLevel = lv;
-  document.querySelectorAll('.lvl-btn').forEach(b => {
-    b.classList.toggle('sel', +b.dataset.lv === lv);
-  });
+  const radio = document.querySelector(`#level-picker-row input[value="${lv}"]`);
+  if (radio) radio.checked = true;
 }
 selectLevel(1);
 
@@ -1777,6 +1824,13 @@ function showModal(title, body, opts = {}) {
   }
 
   document.getElementById('modal').classList.remove('hide');
+  requestAnimationFrame(() => {
+    const checked = document.querySelector('#level-picker-row input:checked');
+    if (checked && checked.offsetParent !== null) { checked.focus(); return; }
+    const first = Array.from(document.querySelectorAll('#modal-box button'))
+      .find(b => b.offsetParent !== null);
+    if (first) first.focus();
+  });
 }
 
 function hideModal() {
