@@ -240,11 +240,17 @@
       }
     }
 
-    #shareBtn {
-      display: none;
+    .top-actions {
+      display: flex;
+      gap: 0.5rem;
       position: fixed;
       top: 1rem;
       right: 1rem;
+      z-index: 100;
+    }
+
+    .top-actions button {
+      display: none;
       background: var(--surface-light);
       color: var(--text);
       border: 1px solid #444;
@@ -254,17 +260,19 @@
       font-weight: 600;
       cursor: pointer;
       transition: background 0.2s, color 0.2s;
-      z-index: 100;
     }
 
-    #shareBtn:hover {
+    .top-actions button:hover {
       background: var(--primary);
       border-color: var(--primary);
     }
   </style>
 </head>
 <body>
-  <button id="shareBtn" aria-label="Share">Share</button>
+  <div class="top-actions">
+    <button id="installBtn" aria-label="Install app">Install</button>
+    <button id="shareBtn" aria-label="Share">Share</button>
+  </div>
   <header>
     <h1>Mini Games</h1>
     <p>Quick, fun, kid-friendly games. No ads, no tracking, no dark patterns. Offline friendly.</p>
@@ -367,6 +375,27 @@
         }
       });
     }
+
+    const installBtn = document.getElementById('installBtn');
+    let installPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      installPrompt = e;
+      installBtn.style.display = 'block';
+    });
+    installBtn.addEventListener('click', async () => {
+      if (!installPrompt) return;
+      await installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === 'accepted') {
+        installBtn.style.display = 'none';
+      }
+      installPrompt = null;
+    });
+    window.addEventListener('appinstalled', () => {
+      installBtn.style.display = 'none';
+      installPrompt = null;
+    });
   </script>
   <script>
     // Register service worker for PWA
