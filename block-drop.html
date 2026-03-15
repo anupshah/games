@@ -548,10 +548,38 @@
             }
 
             .score-entry:first-child {
-                background: linear-gradient(135deg, 
-                    hsla(45, 100%, 50%, 0.2), 
+                background: linear-gradient(135deg,
+                    hsla(45, 100%, 50%, 0.2),
                     hsla(35, 100%, 50%, 0.1));
                 border: 2px solid hsl(45, 90%, 55%);
+            }
+
+            /* High Scores Header */
+            .high-scores-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 1rem;
+            }
+
+            .high-scores-header h3 {
+                margin-bottom: 0;
+            }
+
+            .share-scores-btn {
+                background: none;
+                border: 1px solid var(--color-grid-border);
+                border-radius: 6px;
+                color: var(--color-text-muted);
+                cursor: pointer;
+                font-size: 0.8rem;
+                padding: 0.25rem 0.6rem;
+                transition: all 0.2s;
+            }
+
+            .share-scores-btn:hover {
+                color: var(--color-primary);
+                border-color: var(--color-primary);
             }
 
             /* Keyboard Hints */
@@ -1144,7 +1172,10 @@
                 </div>
 
                 <div class="high-scores">
-                    <h3>🏆 Top Scores</h3>
+                    <div class="high-scores-header">
+                        <h3>🏆 Top Scores</h3>
+                        <button class="share-scores-btn" id="shareScoresBtn" aria-label="Share scores">Share</button>
+                    </div>
                     <div class="score-list" id="scoreList"></div>
                 </div>
             </div>
@@ -1200,7 +1231,10 @@
         </div>
 
         <div class="high-scores">
-            <h3>🏆 Top Scores</h3>
+            <div class="high-scores-header">
+                <h3>🏆 Top Scores</h3>
+                <button class="share-scores-btn" id="shareScoresBtnMobile" aria-label="Share scores">Share</button>
+            </div>
             <div class="score-list" id="scoreListMobile"></div>
         </div>
 
@@ -1231,6 +1265,7 @@
             <p>Lines Cleared: <strong id="finalLines">0</strong></p>
             <p>Level Reached: <strong id="finalLevel">1</strong></p>
             <div class="modal-buttons">
+                <button class="secondary" id="shareScoreBtn">Share</button>
                 <button class="primary" id="playAgainBtn">Play Again</button>
             </div>
         </div>
@@ -2978,11 +3013,78 @@
             }
         }
 
+        async function shareScore(scoreData, isHighScores) {
+            const url = window.location.href;
+            const topScoresList = scoreData
+                .map((s, i) => `#${i + 1}: ${s.score.toLocaleString()} (Level ${s.level}, ${s.lines} lines)`)
+                .join('\n');
+            const text = isHighScores
+                ? `I just played Block Drop and these are my top scores!\n\n${topScoresList}\n\nGive it a go:\n${url}`
+                : `Block Drop 🧱\nScore: ${scoreData.score.toLocaleString()}\nLevel ${scoreData.level} · ${scoreData.lines} lines\n${url}`;
+
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: 'Block Drop', text });
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        try {
+                            await navigator.clipboard.writeText(text);
+                            showShareToast('Score copied to clipboard!');
+                        } catch {}
+                    }
+                }
+            } else {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    showShareToast('Score copied to clipboard!');
+                } catch {
+                    alert(text);
+                }
+            }
+        }
+
+        function showShareToast(msg) {
+            const toast = document.createElement('div');
+            toast.textContent = msg;
+            Object.assign(toast.style, {
+                position: 'fixed', bottom: '2rem', left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'var(--color-primary)', color: 'white',
+                padding: '0.75rem 1.5rem', borderRadius: '8px',
+                fontWeight: '600', zIndex: '9999',
+                transition: 'opacity 0.3s', opacity: '1'
+            });
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+            setTimeout(() => toast.remove(), 2400);
+        }
+
         // Initialize
         const audioManager = new AudioManager();
         window.audioManager = audioManager; // Make globally accessible
         const themeManager = new ThemeManager();
         const game = new Game();
+
+        // Share score buttons
+        document.getElementById('shareScoreBtn').addEventListener('click', () => {
+            shareScore({
+                score: game.state.score,
+                level: game.state.level,
+                lines: game.state.lines
+            }, false);
+        });
+
+        function shareHighScores() {
+            const scores = game.loadHighScores();
+            if (scores.length === 0) {
+                showShareToast('No scores yet!');
+                return;
+            }
+            shareScore(scores, true);
+        }
+
+        document.getElementById('shareScoresBtn').addEventListener('click', shareHighScores);
+        document.getElementById('shareScoresBtnMobile').addEventListener('click', shareHighScores);
 
         // Auto-pause when tab is hidden or window loses focus.
         // Does NOT auto-resume — the player must manually resume to avoid
