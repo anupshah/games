@@ -1266,8 +1266,9 @@
             <p>Final Score: <strong id="finalScore">0</strong></p>
             <p>Lines Cleared: <strong id="finalLines">0</strong></p>
             <p>Level Reached: <strong id="finalLevel">1</strong></p>
+            <p id="topScoreMsg" style="display: none; text-align: center; font-weight: 600;">🎉 New Top 5 Score!</p>
             <div class="modal-buttons">
-                <button class="secondary" id="shareScoreBtn">Share</button>
+                <button class="secondary" id="shareScoreBtn" style="display: none;">Share</button>
                 <button class="primary" id="playAgainBtn">Play Again</button>
             </div>
         </div>
@@ -1299,6 +1300,26 @@
     </div>
 
     <script>
+        // Migrate localStorage keys from legacy tetris_ prefix to blockdrop_
+        (function migrateStorageKeys() {
+            if (localStorage.getItem('blockdrop_migrated')) return;
+            const keyMap = {
+                'tetris_sound': 'blockdrop_sound',
+                'tetris_music': 'blockdrop_music',
+                'tetris_theme': 'blockdrop_theme',
+                'tetris_save': 'blockdrop_save',
+                'tetris_highscores': 'blockdrop_highscores'
+            };
+            for (const [oldKey, newKey] of Object.entries(keyMap)) {
+                const val = localStorage.getItem(oldKey);
+                if (val !== null && localStorage.getItem(newKey) === null) {
+                    localStorage.setItem(newKey, val);
+                }
+                localStorage.removeItem(oldKey);
+            }
+            localStorage.setItem('blockdrop_migrated', '1');
+        })();
+
         // ============================================================
         // REACTIVE STATE MANAGEMENT SYSTEM
         // ============================================================
@@ -1459,8 +1480,8 @@
         
         class AudioManager {
             constructor() {
-                this.soundEnabled = localStorage.getItem('tetris_sound') !== 'false';
-                this.musicEnabled = localStorage.getItem('tetris_music') !== 'false';
+                this.soundEnabled = localStorage.getItem('blockdrop_sound') !== 'false';
+                this.musicEnabled = localStorage.getItem('blockdrop_music') !== 'false';
                 
                 // Create audio context
                 this.audioContext = null;
@@ -1748,13 +1769,13 @@
 
             toggleSound() {
                 this.soundEnabled = !this.soundEnabled;
-                localStorage.setItem('tetris_sound', this.soundEnabled);
+                localStorage.setItem('blockdrop_sound', this.soundEnabled);
                 this.updateIcons();
             }
 
             toggleMusic() {
                 this.musicEnabled = !this.musicEnabled;
-                localStorage.setItem('tetris_music', this.musicEnabled);
+                localStorage.setItem('blockdrop_music', this.musicEnabled);
                 
                 if (this.musicEnabled) {
                     this.startMusic();
@@ -1796,7 +1817,7 @@
         // Theme Management
         class ThemeManager {
             constructor() {
-                this.theme = localStorage.getItem('tetris_theme') || 'auto';
+                this.theme = localStorage.getItem('blockdrop_theme') || 'auto';
                 this.applyTheme();
                 this.setupListeners();
             }
@@ -1831,7 +1852,7 @@
                     (this.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
                 
                 this.theme = isDark ? 'light' : 'dark';
-                localStorage.setItem('tetris_theme', this.theme);
+                localStorage.setItem('blockdrop_theme', this.theme);
                 this.applyTheme();
             }
 
@@ -1934,7 +1955,7 @@
                         canStart: (s) => s.phase === 'welcome' || s.phase === 'gameover',
                         pauseButtonText: (s) => s.phase === 'playing' ? 'Pause' : 'Resume',
                         hasGameInProgress: (s) => s.running && !s.gameOver,
-                        hasSave: (s) => s.phase === 'welcome' && !!localStorage.getItem('tetris_save')
+                        hasSave: (s) => s.phase === 'welcome' && !!localStorage.getItem('blockdrop_save')
                     }
                 );
                 
@@ -1959,7 +1980,7 @@
              * This is where the magic happens - state changes automatically update UI
              */
             _applyPhase(phase) {
-                const hasSave = !!localStorage.getItem('tetris_save');
+                const hasSave = !!localStorage.getItem('blockdrop_save');
                 const welcomeScreen   = document.getElementById('welcomeScreen');
                 const pauseOverlay    = document.getElementById('pauseOverlay');
                 const pauseText       = document.getElementById('pauseOverlayText');
@@ -2025,6 +2046,11 @@
                         document.getElementById('finalScore').textContent = this.state.score.toLocaleString();
                         document.getElementById('finalLines').textContent = this.state.lines;
                         document.getElementById('finalLevel').textContent = this.state.level;
+                        const scores = this.loadHighScores();
+                        const rank = scores.findIndex(s => s.score === this.state.score && s.level === this.state.level && s.lines === this.state.lines);
+                        const isTop5 = rank !== -1 && rank < 5;
+                        document.getElementById('topScoreMsg').style.display = isTop5 ? '' : 'none';
+                        document.getElementById('shareScoreBtn').style.display = isTop5 ? '' : 'none';
                         document.getElementById('gameOverDialog').showModal();
                     }, 500);
                 }
@@ -2135,7 +2161,7 @@
                 });
                 document.getElementById('mobilePlayPauseBtn').addEventListener('click', () => {
                     if (this.state.phase === 'welcome') {
-                        const saved = localStorage.getItem('tetris_save');
+                        const saved = localStorage.getItem('blockdrop_save');
                         if (saved) {
                             this.resumeSaved();
                         } else {
@@ -2910,7 +2936,7 @@
                     breakCount: this.state.breakCount
                 };
                 
-                localStorage.setItem('tetris_save', JSON.stringify(gameState));
+                localStorage.setItem('blockdrop_save', JSON.stringify(gameState));
             }
 
             checkSavedGame() {
@@ -2918,7 +2944,7 @@
             }
 
             resumeSaved() {
-                const saved = localStorage.getItem('tetris_save');
+                const saved = localStorage.getItem('blockdrop_save');
                 if (!saved) return;
                 
                 const savedState = JSON.parse(saved);
@@ -2948,7 +2974,7 @@
             }
 
             clearSavedGame() {
-                localStorage.removeItem('tetris_save');
+                localStorage.removeItem('blockdrop_save');
             }
 
             saveHighScore() {
@@ -2964,12 +2990,12 @@
                 scores.sort((a, b) => b.score - a.score);
                 scores.splice(10); // Keep top 10
                 
-                localStorage.setItem('tetris_highscores', JSON.stringify(scores));
+                localStorage.setItem('blockdrop_highscores', JSON.stringify(scores));
                 this.displayHighScores(scores);
             }
 
             loadHighScores() {
-                const saved = localStorage.getItem('tetris_highscores');
+                const saved = localStorage.getItem('blockdrop_highscores');
                 const scores = saved ? JSON.parse(saved) : [];
                 this.displayHighScores(scores);
                 return scores;
@@ -3015,14 +3041,12 @@
             }
         }
 
-        async function shareScore(scoreData, isHighScores) {
+        async function shareScores(scores) {
             const url = window.location.href;
-            const topScoresList = scoreData
+            const topScoresList = scores
                 .map((s, i) => `#${i + 1}: ${s.score.toLocaleString()} (Level ${s.level}, ${s.lines} lines)`)
                 .join('\n');
-            const text = isHighScores
-                ? `I just played Block Drop and these are my top scores!\n\n${topScoresList}\n\nGive it a go:\n${url}`
-                : `Block Drop 🧱\nScore: ${scoreData.score.toLocaleString()}\nLevel ${scoreData.level} · ${scoreData.lines} lines\n${url}`;
+            const text = `I just played Block Drop and these are my top scores!\n\n${topScoresList}\n\nGive it a go:\n${url}`;
 
             if (navigator.share) {
                 try {
@@ -3069,20 +3093,21 @@
 
         // Share score buttons
         document.getElementById('shareScoreBtn').addEventListener('click', () => {
-            shareScore({
-                score: game.state.score,
-                level: game.state.level,
-                lines: game.state.lines
-            }, false);
-        });
-
-        function shareHighScores() {
-            const scores = game.loadHighScores();
+            const scores = game.loadHighScores().slice(0, 5);
             if (scores.length === 0) {
                 showShareToast('No scores yet!');
                 return;
             }
-            shareScore(scores, true);
+            shareScores(scores);
+        });
+
+        function shareHighScores() {
+            const scores = game.loadHighScores().slice(0, 5);
+            if (scores.length === 0) {
+                showShareToast('No scores yet!');
+                return;
+            }
+            shareScores(scores);
         }
 
         document.getElementById('shareScoresBtn').addEventListener('click', shareHighScores);
