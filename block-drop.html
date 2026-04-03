@@ -618,12 +618,67 @@
             }
 
             /* Touch Controls */
+            .touch-btn {
+                border: none;
+                border-radius: 8px;
+                background: var(--color-primary);
+                color: white;
+                font-size: 1.4rem;
+                font-weight: 700;
+                cursor: pointer;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                user-select: none;
+                -webkit-user-select: none;
+                -webkit-tap-highlight-color: transparent;
+                touch-action: manipulation;
+                transition: transform 0.1s, box-shadow 0.1s;
+            }
+
+            .touch-btn:active {
+                transform: scale(0.95);
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+            }
+
+            .touch-btn.rotate-btn {
+                background: var(--color-success);
+            }
+
             .touch-controls {
                 display: none;
             }
 
             .mobile-bottom-container {
                 display: none;
+            }
+
+            /* Tablet Touch Controls (touch devices with desktop layout) */
+            .tablet-touch-controls {
+                display: none;
+            }
+
+            @media (pointer: coarse) and (min-width: 769px) {
+                .game-board {
+                    flex-direction: column;
+                }
+
+                .tablet-touch-controls {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 0.5rem;
+                    margin-top: 0.75rem;
+                    width: 100%;
+                }
+
+                .tablet-touch-controls .touch-btn {
+                    padding: 0.6rem 0;
+                }
+
+                .keyboard-hints {
+                    display: none;
+                }
             }
 
             @media (max-width: 768px) {
@@ -674,31 +729,12 @@
                 }
 
                 .touch-btn {
-                    border: none;
-                    border-radius: 8px;
-                    background: var(--color-primary);
-                    color: white;
                     font-size: 1.5rem;
-                    font-weight: 700;
-                    cursor: pointer;
-                    transition: all 0.1s;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    user-select: none;
-                    -webkit-tap-highlight-color: transparent;
-                }
-
-                .touch-btn:active {
-                    transform: scale(0.95);
-                    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
                 }
 
                 .touch-btn.rotate-btn {
                     grid-column: 2;
                     grid-row: 1;
-                    background: var(--color-success);
                 }
 
                 .touch-btn.left-btn {
@@ -1155,6 +1191,14 @@
                 </div>
                 
                 <canvas id="gameCanvas" width="300" height="600" role="application" aria-label="Block Drop game board"></canvas>
+
+                <!-- Tablet Touch Controls (shown on touch devices with desktop layout) -->
+                <div class="tablet-touch-controls">
+                    <button class="touch-btn left-btn" data-action="left" aria-label="Move left">←</button>
+                    <button class="touch-btn rotate-btn" data-action="rotate" aria-label="Rotate">↻</button>
+                    <button class="touch-btn down-btn" data-action="drop" aria-label="Drop faster">↓</button>
+                    <button class="touch-btn right-btn" data-action="right" aria-label="Move right">→</button>
+                </div>
             </div>
 
             <div class="side-panel">
@@ -2191,6 +2235,14 @@
                 document.getElementById('rightBtn').addEventListener('click', () => this.move(1));
                 document.getElementById('rotateBtn').addEventListener('click', () => this.rotate());
                 document.getElementById('downBtn').addEventListener('click', () => this.drop());
+
+                // Tablet touch controls (delegated)
+                document.querySelector('.tablet-touch-controls').addEventListener('click', (e) => {
+                    const btn = e.target.closest('[data-action]');
+                    if (!btn) return;
+                    const actions = { left: () => this.move(-1), right: () => this.move(1), rotate: () => this.rotate(), drop: () => this.drop() };
+                    actions[btn.dataset.action]?.();
+                });
                 
                 // Canvas tap zones for mobile (only on touch devices)
                 if ('ontouchstart' in window) {
